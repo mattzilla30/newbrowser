@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "NewBrowser"
+rootProject.name = "CynBrowse"
 include(":app")
