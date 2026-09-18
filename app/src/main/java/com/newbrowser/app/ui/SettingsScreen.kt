@@ -118,6 +118,28 @@ fun SettingsScreen(
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.padding(bottom = 16.dp),
                 )
+
+                SettingSwitchRow(
+                    label = "Block pop-ups",
+                    checked = appSettings.blockPopups,
+                    onCheckedChange = appSettings::updateBlockPopups,
+                )
+                Text(
+                    text = "Blocks windows a page opens on its own; pop-ups from a direct tap still open as a new tab.",
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(top = 4.dp, bottom = 16.dp),
+                )
+
+                SettingSwitchRow(
+                    label = "Send Do Not Track requests",
+                    checked = appSettings.doNotTrack,
+                    onCheckedChange = appSettings::updateDoNotTrack,
+                )
+                Text(
+                    text = "Asks sites not to track you. Most sites ignore this, but it costs nothing to ask.",
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(top = 4.dp, bottom = 16.dp),
+                )
             }
         }
     }

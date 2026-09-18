@@ -9,6 +9,8 @@ private const val KEY_AD_BLOCK_ENABLED = "ad_block_enabled"
 private const val KEY_TOTAL_BLOCKED_COUNT = "total_blocked_count"
 private const val KEY_SEARCH_ENGINE = "search_engine"
 private const val KEY_DARK_MODE_FOR_PAGES = "dark_mode_for_pages"
+private const val KEY_BLOCK_POPUPS = "block_popups"
+private const val KEY_DO_NOT_TRACK = "do_not_track"
 private const val DEFAULT_HOME_URL = "https://duckduckgo.com"
 private const val DEFAULT_SEARCH_ENGINE = "duckduckgo"
 
@@ -38,4 +40,12 @@ class BrowserPreferences(context: Context) {
     var darkModeForPages: Boolean
         get() = prefs.getBoolean(KEY_DARK_MODE_FOR_PAGES, false)
         set(value) = prefs.edit().putBoolean(KEY_DARK_MODE_FOR_PAGES, value).apply()
+
+    var blockPopups: Boolean
+        get() = prefs.getBoolean(KEY_BLOCK_POPUPS, true)
+        set(value) = prefs.edit().putBoolean(KEY_BLOCK_POPUPS, value).apply()
+
+    var doNotTrack: Boolean
+        get() = prefs.getBoolean(KEY_DO_NOT_TRACK, false)
+        set(value) = prefs.edit().putBoolean(KEY_DO_NOT_TRACK, value).apply()
 }

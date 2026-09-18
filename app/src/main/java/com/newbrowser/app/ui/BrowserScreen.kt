@@ -9,6 +9,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.ContextWrapper
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Bundle
@@ -34,6 +35,10 @@ import android.widget.FrameLayout
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
+import androidx.core.content.pm.ShortcutInfoCompat
+import androidx.core.content.pm.ShortcutManagerCompat
+import androidx.core.graphics.drawable.IconCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
@@ -95,6 +100,8 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.PopupProperties
+import com.newbrowser.app.MainActivity
+import com.newbrowser.app.R
 import com.newbrowser.app.data.AdBlocker
 import com.newbrowser.app.data.BrowserDatabase
 import com.newbrowser.app.data.BrowserSettings
@@ -170,6 +177,7 @@ fun BrowserScreen(
                 else -> false
             }
         }
+        database.setSitePermission(originOf(request.origin.toString()), "media", granted.isNotEmpty())
         if (granted.isNotEmpty()) request.grant(granted.toTypedArray()) else request.deny()
     }
 
@@ -178,7 +186,10 @@ fun BrowserScreen(
     ) { granted ->
         val request = inFlightGeoRequest.value
         inFlightGeoRequest.value = null
-        request?.let { it.callback.invoke(it.origin, granted, false) }
+        request?.let {
+            database.setSitePermission(originOf(it.origin), "location", granted)
+            it.callback.invoke(it.origin, granted, false)
+        }
     }
 
     val webView = remember {
@@ -194,6 +205,8 @@ fun BrowserScreen(
             settings.setSupportZoom(true)
             settings.builtInZoomControls = true
             settings.displayZoomControls = false
+            settings.javaScriptCanOpenWindowsAutomatically = true
+            settings.setSupportMultipleWindows(true)
 
             if (WebViewFeature.isFeatureSupported(WebViewFeature.ALGORITHMIC_DARKENING)) {
                 WebSettingsCompat.setAlgorithmicDarkeningAllowed(settings, appSettings.darkModeForPages)
@@ -213,6 +226,20 @@ fun BrowserScreen(
             }
 
             webViewClient = object : WebViewClient() {
+                private var lastDntReissuedUrl: String? = null
+
+                override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
+                    if (appSettings.doNotTrack && request.isForMainFrame) {
+                        val url = request.url.toString()
+                        if (url != lastDntReissuedUrl) {
+                            lastDntReissuedUrl = url
+                            view.loadUrl(url, mapOf("DNT" to "1"))
+                            return true
+                        }
+                    }
+                    return false
+                }
+
                 override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
                     super.onPageStarted(view, url, favicon)
                     val tab = tabManager.activeTab ?: return
@@ -237,6 +264,7 @@ fun BrowserScreen(
                         database.addHistoryEntry(url, tab.title.ifBlank { url })
                         tabManager.persistTabs()
                     }
+                    lastDntReissuedUrl = null
                 }
 
                 override fun shouldInterceptRequest(
@@ -354,7 +382,21 @@ fun BrowserScreen(
 
                 override fun onPermissionRequest(request: PermissionRequest?) {
                     if (request == null) return
-                    pendingPermissionRequest = request
+                    val origin = originOf(request.origin.toString())
+                    when (database.getSitePermission(origin, "media")) {
+                        true -> {
+                            val needed = buildList {
+                                if (PermissionRequest.RESOURCE_VIDEO_CAPTURE in request.resources) add(Manifest.permission.CAMERA)
+                                if (PermissionRequest.RESOURCE_AUDIO_CAPTURE in request.resources) add(Manifest.permission.RECORD_AUDIO)
+                            }
+                            val allOsGranted = needed.all {
+                                ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
+                            }
+                            if (allOsGranted) request.grant(request.resources) else pendingPermissionRequest = request
+                        }
+                        false -> request.deny()
+                        null -> pendingPermissionRequest = request
+                    }
                 }
 
                 override fun onGeolocationPermissionsShowPrompt(
@@ -362,7 +404,45 @@ fun BrowserScreen(
                     callback: GeolocationPermissions.Callback?,
                 ) {
                     if (origin == null || callback == null) return
-                    pendingGeoRequest = GeoRequest(origin, callback)
+                    val cleanOrigin = originOf(origin)
+                    when (database.getSitePermission(cleanOrigin, "location")) {
+                        true -> {
+                            val osGranted = ContextCompat.checkSelfPermission(
+                                context,
+                                Manifest.permission.ACCESS_FINE_LOCATION,
+                            ) == PackageManager.PERMISSION_GRANTED
+                            if (osGranted) callback.invoke(origin, true, false) else pendingGeoRequest = GeoRequest(origin, callback)
+                        }
+                        false -> callback.invoke(origin, false, false)
+                        null -> pendingGeoRequest = GeoRequest(origin, callback)
+                    }
+                }
+
+                override fun onCreateWindow(
+                    view: WebView?,
+                    isDialog: Boolean,
+                    isUserGesture: Boolean,
+                    resultMsg: android.os.Message?,
+                ): Boolean {
+                    if (appSettings.blockPopups && !isUserGesture) return false
+                    val transport = WebView(context)
+                    transport.webViewClient = object : WebViewClient() {
+                        override fun shouldOverrideUrlLoading(
+                            view: WebView,
+                            request: WebResourceRequest,
+                        ): Boolean {
+                            tabManager.newTab(url = request.url.toString(), incognito = activeTab.isIncognito)
+                            transport.destroy()
+                            return true
+                        }
+                    }
+                    val transportObject = resultMsg?.obj as? WebView.WebViewTransport ?: run {
+                        transport.destroy()
+                        return false
+                    }
+                    transportObject.webView = transport
+                    resultMsg.sendToTarget()
+                    return true
                 }
             }
 
@@ -467,6 +547,20 @@ fun BrowserScreen(
         val jobName = activeTab.title.ifBlank { "Web page" }
         val adapter = webView.createPrintDocumentAdapter(jobName)
         printManager.print(jobName, adapter, PrintAttributes.Builder().build())
+    }
+
+    fun addToHomeScreen() {
+        if (!ShortcutManagerCompat.isRequestPinShortcutSupported(context)) return
+        val shortcutIntent = Intent(context, MainActivity::class.java).apply {
+            action = Intent.ACTION_VIEW
+            data = Uri.parse(activeTab.url)
+        }
+        val shortcut = ShortcutInfoCompat.Builder(context, "site_${System.currentTimeMillis()}")
+            .setShortLabel(activeTab.title.take(30).ifBlank { activeTab.url })
+            .setIcon(IconCompat.createWithResource(context, R.mipmap.ic_launcher))
+            .setIntent(shortcutIntent)
+            .build()
+        ShortcutManagerCompat.requestPinShortcut(context, shortcut, null)
     }
 
     fun openReaderMode() {
@@ -712,6 +806,14 @@ fun BrowserScreen(
                             menuExpanded = false
                             printPage()
                         })
+                        DropdownMenuItem(text = { Text("Add to Home screen") }, onClick = {
+                            menuExpanded = false
+                            addToHomeScreen()
+                        })
+                        DropdownMenuItem(text = { Text("Site permissions") }, onClick = {
+                            menuExpanded = false
+                            onNavigate(Screen.SitePermissions)
+                        })
                     }
                 }
                 IconButton(onClick = { onNavigate(Screen.Settings) }) {
@@ -850,6 +952,7 @@ fun BrowserScreen(
         }
         AlertDialog(
             onDismissRequest = {
+                database.setSitePermission(originOf(request.origin.toString()), "media", false)
                 request.deny()
                 pendingPermissionRequest = null
             },
@@ -872,6 +975,7 @@ fun BrowserScreen(
             },
             dismissButton = {
                 TextButton(onClick = {
+                    database.setSitePermission(originOf(request.origin.toString()), "media", false)
                     request.deny()
                     pendingPermissionRequest = null
                 }) { Text("Deny") }
@@ -882,6 +986,7 @@ fun BrowserScreen(
     pendingGeoRequest?.let { request ->
         AlertDialog(
             onDismissRequest = {
+                database.setSitePermission(originOf(request.origin), "location", false)
                 request.callback.invoke(request.origin, false, false)
                 pendingGeoRequest = null
             },
@@ -896,6 +1001,7 @@ fun BrowserScreen(
             },
             dismissButton = {
                 TextButton(onClick = {
+                    database.setSitePermission(originOf(request.origin), "location", false)
                     request.callback.invoke(request.origin, false, false)
                     pendingGeoRequest = null
                 }) { Text("Deny") }
@@ -966,3 +1072,6 @@ private fun errorPageDataUrl(failedUrl: String): String {
     """.trimIndent()
     return "data:text/html;charset=utf-8," + Uri.encode(html)
 }
+
+/** Normalizes a WebView-supplied origin/URL string down to a host, for use as a permission-memory key. */
+private fun originOf(originOrUrl: String): String = Uri.parse(originOrUrl).host ?: originOrUrl

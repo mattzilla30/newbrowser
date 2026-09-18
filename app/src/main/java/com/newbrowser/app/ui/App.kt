@@ -5,6 +5,7 @@ import android.webkit.WebStorage
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -17,7 +18,10 @@ import com.newbrowser.app.data.BrowserSettings
 import com.newbrowser.app.ui.tabs.TabManager
 
 @Composable
-fun NewBrowserApp() {
+fun NewBrowserApp(
+    pendingUrl: String? = null,
+    onPendingUrlConsumed: () -> Unit = {},
+) {
     val context = LocalContext.current
     val preferences = remember { BrowserPreferences(context) }
     val appSettings = remember { BrowserSettings(preferences) }
@@ -25,6 +29,14 @@ fun NewBrowserApp() {
     val tabManager = remember { TabManager(database) { appSettings.homeUrl } }
 
     var screen by remember { mutableStateOf(Screen.Browser) }
+
+    LaunchedEffect(pendingUrl) {
+        if (pendingUrl != null) {
+            tabManager.newTab(url = pendingUrl)
+            screen = Screen.Browser
+            onPendingUrlConsumed()
+        }
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         BrowserScreen(
@@ -71,6 +83,11 @@ fun NewBrowserApp() {
             )
 
             Screen.Downloads -> DownloadsScreen(
+                database = database,
+                onBack = { screen = Screen.Browser },
+            )
+
+            Screen.SitePermissions -> SitePermissionsScreen(
                 database = database,
                 onBack = { screen = Screen.Browser },
             )

@@ -30,6 +30,12 @@ class BrowserSettings(private val preferences: BrowserPreferences) {
     var darkModeForPages by mutableStateOf(preferences.darkModeForPages)
         private set
 
+    var blockPopups by mutableStateOf(preferences.blockPopups)
+        private set
+
+    var doNotTrack by mutableStateOf(preferences.doNotTrack)
+        private set
+
     fun updateHomeUrl(value: String) {
         homeUrl = value
         preferences.homeUrl = value
@@ -59,5 +65,15 @@ class BrowserSettings(private val preferences: BrowserPreferences) {
     fun updateDarkModeForPages(value: Boolean) {
         darkModeForPages = value
         preferences.darkModeForPages = value
+    }
+
+    fun updateBlockPopups(value: Boolean) {
+        blockPopups = value
+        preferences.blockPopups = value
+    }
+
+    fun updateDoNotTrack(value: Boolean) {
+        doNotTrack = value
+        preferences.doNotTrack = value
     }
 }
