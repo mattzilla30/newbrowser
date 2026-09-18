@@ -23,16 +23,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.newbrowser.app.data.BrowserSettings
 
 @Composable
 fun SettingsScreen(
-    homeUrl: String,
-    javaScriptEnabled: Boolean,
-    adBlockEnabled: Boolean,
-    totalBlockedCount: Long,
-    onHomeUrlChange: (String) -> Unit,
-    onJavaScriptEnabledChange: (Boolean) -> Unit,
-    onAdBlockEnabledChange: (Boolean) -> Unit,
+    appSettings: BrowserSettings,
     onClearBrowsingData: () -> Unit,
     onBack: () -> Unit,
 ) {
@@ -61,8 +56,8 @@ fun SettingsScreen(
 
                 Text("Home page")
                 OutlinedTextField(
-                    value = homeUrl,
-                    onValueChange = onHomeUrlChange,
+                    value = appSettings.homeUrl,
+                    onValueChange = appSettings::updateHomeUrl,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = 8.dp, bottom = 24.dp),
@@ -71,8 +66,8 @@ fun SettingsScreen(
 
                 SettingSwitchRow(
                     label = "Enable JavaScript",
-                    checked = javaScriptEnabled,
-                    onCheckedChange = onJavaScriptEnabledChange,
+                    checked = appSettings.javaScriptEnabled,
+                    onCheckedChange = appSettings::updateJavaScriptEnabled,
                 )
 
                 Button(
@@ -88,8 +83,8 @@ fun SettingsScreen(
 
                 SettingSwitchRow(
                     label = "Block ads & trackers",
-                    checked = adBlockEnabled,
-                    onCheckedChange = onAdBlockEnabledChange,
+                    checked = appSettings.adBlockEnabled,
+                    onCheckedChange = appSettings::updateAdBlockEnabled,
                 )
                 Text(
                     text = "Blocks known ad and tracker domains before they load, in the style of Brave's Shields.",
@@ -98,7 +93,7 @@ fun SettingsScreen(
                 )
 
                 Text(
-                    text = "$totalBlockedCount ads & trackers blocked",
+                    text = "${appSettings.totalBlockedCount} ads & trackers blocked",
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.padding(bottom = 16.dp),
                 )
