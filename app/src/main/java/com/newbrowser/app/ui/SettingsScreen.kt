@@ -16,7 +16,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
@@ -36,9 +38,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.newbrowser.app.data.AdBlocker
 import com.newbrowser.app.data.BrowserSettings
 import com.newbrowser.app.data.SEARCH_ENGINES
 import com.newbrowser.app.data.searchEngineFor
+import java.text.DateFormat
+import java.util.Date
 
 @Composable
 fun SettingsScreen(
@@ -47,6 +52,9 @@ fun SettingsScreen(
     onBack: () -> Unit,
 ) {
     BackHandler(onBack = onBack)
+
+    var filterUpdateInProgress by remember { mutableStateOf(false) }
+    var filterUpdateStatus by remember { mutableStateOf<String?>(null) }
 
     Surface(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -129,8 +137,59 @@ fun SettingsScreen(
                 Text(
                     text = "${appSettings.totalBlockedCount} ads & trackers blocked",
                     style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(bottom = 16.dp),
+                    modifier = Modifier.padding(bottom = 4.dp),
                 )
+
+                val lastUpdatedMillis = AdBlocker.lastUpdatedMillis()
+                Text(
+                    text = "Filter list: ${AdBlocker.currentDomainCount()} domains" +
+                        if (lastUpdatedMillis > 0) {
+                            ", last updated ${DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(lastUpdatedMillis))}"
+                        } else {
+                            " (bundled with the app)"
+                        },
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(bottom = 8.dp),
+                )
+
+                Button(
+                    onClick = {
+                        filterUpdateInProgress = true
+                        filterUpdateStatus = null
+                        AdBlocker.updateFilterListsAsync { result ->
+                            filterUpdateInProgress = false
+                            filterUpdateStatus = when (result) {
+                                is AdBlocker.UpdateResult.Success ->
+                                    "Updated — now blocking ${result.domainCount} domains."
+                                is AdBlocker.UpdateResult.Failure ->
+                                    "Update failed: ${result.message}"
+                            }
+                        }
+                    },
+                    enabled = !filterUpdateInProgress,
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        if (filterUpdateInProgress) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp,
+                            )
+                        }
+                        Text(if (filterUpdateInProgress) "Updating…" else "Update filter lists")
+                    }
+                }
+                filterUpdateStatus?.let { status ->
+                    Text(
+                        text = status,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
+                }
+
+                HorizontalDivider(modifier = Modifier.padding(top = 16.dp, bottom = 16.dp))
 
                 SettingSwitchRow(
                     label = "Block pop-ups",
