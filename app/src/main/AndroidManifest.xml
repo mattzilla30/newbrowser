@@ -6,6 +6,21 @@
     <uses-permission
         android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="28" />
+    <!--
+        These four are only requested at runtime, with an explicit allow/deny prompt, when a
+        web page asks for camera, microphone, or location access (WebView's onPermissionRequest
+        / onGeolocationPermissionsShowPrompt). Declaring them here is required for that runtime
+        request to work at all; it does not grant anything by itself.
+    -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <!-- Declaring the CAMERA permission alone can make some stores assume the hardware is
+         required; these mark it optional so the app still installs on devices without one. -->
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.microphone" android:required="false" />
+    <uses-feature android:name="android.hardware.location" android:required="false" />
 
     <application
         android:allowBackup="true"

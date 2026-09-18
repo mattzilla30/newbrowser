@@ -1,24 +1,41 @@
 package com.newbrowser.app.ui
 
+import android.Manifest
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.app.DownloadManager
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.ContextWrapper
 import android.content.Intent
 import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Bundle
 import android.os.Environment
+import android.print.PrintAttributes
+import android.print.PrintManager
+import android.view.View
 import android.view.ViewGroup
+import android.webkit.GeolocationPermissions
+import android.webkit.JsPromptResult
+import android.webkit.JsResult
+import android.webkit.PermissionRequest
 import android.webkit.URLUtil
+import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
+import android.webkit.WebResourceError
 import android.webkit.WebSettings
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.widget.FrameLayout
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import androidx.webkit.WebSettingsCompat
 import androidx.webkit.WebViewFeature
@@ -119,6 +136,51 @@ fun BrowserScreen(
     var longPressLinkUrl by remember { mutableStateOf<String?>(null) }
     var readerContent by remember { mutableStateOf<ReaderContent?>(null) }
 
+    var jsDialogRequest by remember { mutableStateOf<JsDialogRequest?>(null) }
+    var filePathCallback by remember { mutableStateOf<ValueCallback<Array<Uri>>?>(null) }
+    var pendingPermissionRequest by remember { mutableStateOf<PermissionRequest?>(null) }
+    var pendingGeoRequest by remember { mutableStateOf<GeoRequest?>(null) }
+    val inFlightPermissionRequest = remember { mutableStateOf<PermissionRequest?>(null) }
+    val inFlightGeoRequest = remember { mutableStateOf<GeoRequest?>(null) }
+
+    val fileChooserLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
+    ) { result ->
+        val callback = filePathCallback
+        filePathCallback = null
+        val data = result.data
+        val uris = if (result.resultCode == Activity.RESULT_OK && data != null) {
+            WebChromeClient.FileChooserParams.parseResult(result.resultCode, data) ?: emptyArray()
+        } else {
+            emptyArray()
+        }
+        callback?.onReceiveValue(uris)
+    }
+
+    val cameraMicPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions(),
+    ) { grants ->
+        val request = inFlightPermissionRequest.value
+        inFlightPermissionRequest.value = null
+        if (request == null) return@rememberLauncherForActivityResult
+        val granted = request.resources.filter { resource ->
+            when (resource) {
+                PermissionRequest.RESOURCE_VIDEO_CAPTURE -> grants[Manifest.permission.CAMERA] == true
+                PermissionRequest.RESOURCE_AUDIO_CAPTURE -> grants[Manifest.permission.RECORD_AUDIO] == true
+                else -> false
+            }
+        }
+        if (granted.isNotEmpty()) request.grant(granted.toTypedArray()) else request.deny()
+    }
+
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        val request = inFlightGeoRequest.value
+        inFlightGeoRequest.value = null
+        request?.let { it.callback.invoke(it.origin, granted, false) }
+    }
+
     val webView = remember {
         WebView(context).apply {
             layoutParams = ViewGroup.LayoutParams(
@@ -191,9 +253,23 @@ fun BrowserScreen(
                     }
                     return super.shouldInterceptRequest(view, request)
                 }
+
+                override fun onReceivedError(
+                    view: WebView?,
+                    request: WebResourceRequest?,
+                    error: WebResourceError?,
+                ) {
+                    super.onReceivedError(view, request, error)
+                    if (request?.isForMainFrame == true) {
+                        view?.loadUrl(errorPageDataUrl(request.url.toString()))
+                    }
+                }
             }
 
             webChromeClient = object : WebChromeClient() {
+                private var fullscreenContainer: ViewGroup? = null
+                private var fullscreenCallback: CustomViewCallback? = null
+
                 override fun onProgressChanged(view: WebView?, newProgress: Int) {
                     super.onProgressChanged(view, newProgress)
                     tabManager.activeTab?.let { it.isLoading = newProgress in 1..99 }
@@ -206,6 +282,87 @@ fun BrowserScreen(
                         tab.title = title
                         if (!tab.isIncognito) tabManager.persistTabs()
                     }
+                }
+
+                override fun onJsAlert(view: WebView?, url: String?, message: String?, result: JsResult): Boolean {
+                    jsDialogRequest = JsDialogRequest.Alert(message.orEmpty(), result)
+                    return true
+                }
+
+                override fun onJsConfirm(view: WebView?, url: String?, message: String?, result: JsResult): Boolean {
+                    jsDialogRequest = JsDialogRequest.Confirm(message.orEmpty(), result)
+                    return true
+                }
+
+                override fun onJsPrompt(
+                    view: WebView?,
+                    url: String?,
+                    message: String?,
+                    defaultValue: String?,
+                    result: JsPromptResult,
+                ): Boolean {
+                    jsDialogRequest = JsDialogRequest.Prompt(message.orEmpty(), defaultValue.orEmpty(), result)
+                    return true
+                }
+
+                override fun onShowFileChooser(
+                    view: WebView?,
+                    filePathCallbackParam: ValueCallback<Array<Uri>>?,
+                    fileChooserParams: FileChooserParams?,
+                ): Boolean {
+                    val intent = fileChooserParams?.createIntent() ?: return false
+                    filePathCallback?.onReceiveValue(null)
+                    filePathCallback = filePathCallbackParam
+                    return try {
+                        fileChooserLauncher.launch(intent)
+                        true
+                    } catch (e: Exception) {
+                        filePathCallback = null
+                        false
+                    }
+                }
+
+                override fun onShowCustomView(view: View?, callback: CustomViewCallback?) {
+                    if (view == null) return
+                    val activity = context.findActivity() ?: return
+                    val decorView = activity.window.decorView as? ViewGroup ?: return
+                    val container = FrameLayout(activity).apply {
+                        layoutParams = ViewGroup.LayoutParams(
+                            ViewGroup.LayoutParams.MATCH_PARENT,
+                            ViewGroup.LayoutParams.MATCH_PARENT,
+                        )
+                        addView(view)
+                    }
+                    decorView.addView(container)
+                    fullscreenContainer = container
+                    fullscreenCallback = callback
+                    WindowInsetsControllerCompat(activity.window, decorView).apply {
+                        hide(WindowInsetsCompat.Type.systemBars())
+                        systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                    }
+                }
+
+                override fun onHideCustomView() {
+                    val activity = context.findActivity() ?: return
+                    val decorView = activity.window.decorView as? ViewGroup ?: return
+                    fullscreenContainer?.let { decorView.removeView(it) }
+                    fullscreenContainer = null
+                    fullscreenCallback?.onCustomViewHidden()
+                    fullscreenCallback = null
+                    WindowInsetsControllerCompat(activity.window, decorView).show(WindowInsetsCompat.Type.systemBars())
+                }
+
+                override fun onPermissionRequest(request: PermissionRequest?) {
+                    if (request == null) return
+                    pendingPermissionRequest = request
+                }
+
+                override fun onGeolocationPermissionsShowPrompt(
+                    origin: String?,
+                    callback: GeolocationPermissions.Callback?,
+                ) {
+                    if (origin == null || callback == null) return
+                    pendingGeoRequest = GeoRequest(origin, callback)
                 }
             }
 
@@ -303,6 +460,13 @@ fun BrowserScreen(
             putExtra(Intent.EXTRA_TEXT, activeTab.url)
         }
         context.startActivity(Intent.createChooser(sendIntent, null))
+    }
+
+    fun printPage() {
+        val printManager = context.getSystemService(Context.PRINT_SERVICE) as PrintManager
+        val jobName = activeTab.title.ifBlank { "Web page" }
+        val adapter = webView.createPrintDocumentAdapter(jobName)
+        printManager.print(jobName, adapter, PrintAttributes.Builder().build())
     }
 
     fun openReaderMode() {
@@ -544,6 +708,10 @@ fun BrowserScreen(
                             menuExpanded = false
                             sharePage()
                         })
+                        DropdownMenuItem(text = { Text("Print") }, onClick = {
+                            menuExpanded = false
+                            printPage()
+                        })
                     }
                 }
                 IconButton(onClick = { onNavigate(Screen.Settings) }) {
@@ -599,6 +767,141 @@ fun BrowserScreen(
             },
         )
     }
+
+    jsDialogRequest?.let { request ->
+        when (request) {
+            is JsDialogRequest.Alert -> AlertDialog(
+                onDismissRequest = {
+                    request.result.cancel()
+                    jsDialogRequest = null
+                },
+                title = { Text(activeTab.url) },
+                text = { Text(request.message) },
+                confirmButton = {
+                    TextButton(onClick = {
+                        request.result.confirm()
+                        jsDialogRequest = null
+                    }) { Text("OK") }
+                },
+            )
+
+            is JsDialogRequest.Confirm -> AlertDialog(
+                onDismissRequest = {
+                    request.result.cancel()
+                    jsDialogRequest = null
+                },
+                title = { Text(activeTab.url) },
+                text = { Text(request.message) },
+                confirmButton = {
+                    TextButton(onClick = {
+                        request.result.confirm()
+                        jsDialogRequest = null
+                    }) { Text("OK") }
+                },
+                dismissButton = {
+                    TextButton(onClick = {
+                        request.result.cancel()
+                        jsDialogRequest = null
+                    }) { Text("Cancel") }
+                },
+            )
+
+            is JsDialogRequest.Prompt -> {
+                var promptValue by remember(request) { mutableStateOf(request.defaultValue) }
+                AlertDialog(
+                    onDismissRequest = {
+                        request.result.cancel()
+                        jsDialogRequest = null
+                    },
+                    title = { Text(activeTab.url) },
+                    text = {
+                        Column {
+                            Text(request.message)
+                            OutlinedTextField(
+                                value = promptValue,
+                                onValueChange = { promptValue = it },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
+                    },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            request.result.confirm(promptValue)
+                            jsDialogRequest = null
+                        }) { Text("OK") }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = {
+                            request.result.cancel()
+                            jsDialogRequest = null
+                        }) { Text("Cancel") }
+                    },
+                )
+            }
+        }
+    }
+
+    pendingPermissionRequest?.let { request ->
+        val label = if (PermissionRequest.RESOURCE_VIDEO_CAPTURE in request.resources) {
+            "camera and microphone"
+        } else {
+            "microphone"
+        }
+        AlertDialog(
+            onDismissRequest = {
+                request.deny()
+                pendingPermissionRequest = null
+            },
+            title = { Text("Permission request") },
+            text = { Text("${request.origin} wants to use your $label.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    pendingPermissionRequest = null
+                    val androidPermissions = buildList {
+                        if (PermissionRequest.RESOURCE_VIDEO_CAPTURE in request.resources) add(Manifest.permission.CAMERA)
+                        if (PermissionRequest.RESOURCE_AUDIO_CAPTURE in request.resources) add(Manifest.permission.RECORD_AUDIO)
+                    }
+                    if (androidPermissions.isEmpty()) {
+                        request.deny()
+                    } else {
+                        inFlightPermissionRequest.value = request
+                        cameraMicPermissionLauncher.launch(androidPermissions.toTypedArray())
+                    }
+                }) { Text("Allow") }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    request.deny()
+                    pendingPermissionRequest = null
+                }) { Text("Deny") }
+            },
+        )
+    }
+
+    pendingGeoRequest?.let { request ->
+        AlertDialog(
+            onDismissRequest = {
+                request.callback.invoke(request.origin, false, false)
+                pendingGeoRequest = null
+            },
+            title = { Text("Location request") },
+            text = { Text("${request.origin} wants to use your location.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    pendingGeoRequest = null
+                    inFlightGeoRequest.value = request
+                    locationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+                }) { Text("Allow") }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    request.callback.invoke(request.origin, false, false)
+                    pendingGeoRequest = null
+                }) { Text("Deny") }
+            },
+        )
+    }
 }
 
 private fun normalizeUrl(input: String, homeUrl: String, searchEngineKey: String): String {
@@ -636,3 +939,30 @@ private const val READER_EXTRACTION_JS = """
 """
 
 data class ReaderContent(val title: String, val content: String)
+
+private data class GeoRequest(val origin: String, val callback: GeolocationPermissions.Callback)
+
+private sealed class JsDialogRequest {
+    data class Alert(val message: String, val result: JsResult) : JsDialogRequest()
+    data class Confirm(val message: String, val result: JsResult) : JsDialogRequest()
+    data class Prompt(val message: String, val defaultValue: String, val result: JsPromptResult) : JsDialogRequest()
+}
+
+private fun Context.findActivity(): Activity? {
+    var ctx = this
+    while (ctx is ContextWrapper) {
+        if (ctx is Activity) return ctx
+        ctx = ctx.baseContext
+    }
+    return null
+}
+
+private fun errorPageDataUrl(failedUrl: String): String {
+    val html = """
+        <html><body style="font-family:sans-serif;text-align:center;padding-top:80px;color:#666;">
+        <h2>This page couldn't load</h2>
+        <p style="word-break:break-all;">$failedUrl</p>
+        </body></html>
+    """.trimIndent()
+    return "data:text/html;charset=utf-8," + Uri.encode(html)
+}
