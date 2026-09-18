@@ -4,6 +4,8 @@ import android.annotation.SuppressLint
 import android.graphics.Bitmap
 import android.view.ViewGroup
 import android.webkit.WebChromeClient
+import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.compose.BackHandler
@@ -26,6 +28,8 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -36,8 +40,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -47,6 +53,8 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import com.newbrowser.app.data.AdBlocker
+import java.io.ByteArrayInputStream
 import java.net.URLEncoder
 
 @SuppressLint("SetJavaScriptEnabled")
@@ -54,6 +62,9 @@ import java.net.URLEncoder
 fun BrowserScreen(
     homeUrl: String,
     javaScriptEnabled: Boolean,
+    adBlockEnabled: Boolean,
+    totalBlockedCount: Long,
+    onTotalBlockedCountChange: (Long) -> Unit,
     onOpenSettings: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -63,6 +74,11 @@ fun BrowserScreen(
     var isLoading by remember { mutableStateOf(false) }
     var canGoBack by remember { mutableStateOf(false) }
     var canGoForward by remember { mutableStateOf(false) }
+    var blockedOnPage by remember { mutableIntStateOf(0) }
+
+    val latestAdBlockEnabled = rememberUpdatedState(adBlockEnabled)
+    val latestTotalBlockedCount = rememberUpdatedState(totalBlockedCount)
+    val latestOnTotalBlockedCountChange = rememberUpdatedState(onTotalBlockedCountChange)
 
     val webView = remember {
         WebView(context).apply {
@@ -79,6 +95,7 @@ fun BrowserScreen(
                 override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
                     super.onPageStarted(view, url, favicon)
                     isLoading = true
+                    blockedOnPage = 0
                     url?.let { addressText = it }
                     canGoBack = view?.canGoBack() ?: false
                     canGoForward = view?.canGoForward() ?: false
@@ -90,6 +107,24 @@ fun BrowserScreen(
                     url?.let { addressText = it }
                     canGoBack = view?.canGoBack() ?: false
                     canGoForward = view?.canGoForward() ?: false
+                    if (blockedOnPage > 0) {
+                        latestOnTotalBlockedCountChange.value(latestTotalBlockedCount.value + blockedOnPage)
+                    }
+                }
+
+                override fun shouldInterceptRequest(
+                    view: WebView?,
+                    request: WebResourceRequest?,
+                ): WebResourceResponse? {
+                    if (request != null &&
+                        !request.isForMainFrame &&
+                        latestAdBlockEnabled.value &&
+                        AdBlocker.isBlockedHost(request.url.host)
+                    ) {
+                        blockedOnPage++
+                        return WebResourceResponse("text/plain", "UTF-8", ByteArrayInputStream(ByteArray(0)))
+                    }
+                    return super.shouldInterceptRequest(view, request)
                 }
             }
 
@@ -186,7 +221,13 @@ fun BrowserScreen(
                     Icon(Icons.Filled.Home, contentDescription = "Home")
                 }
                 IconButton(onClick = onOpenSettings) {
-                    Icon(Icons.Filled.Settings, contentDescription = "Settings")
+                    BadgedBox(badge = {
+                        if (adBlockEnabled && blockedOnPage > 0) {
+                            Badge { Text(blockedOnPage.toString()) }
+                        }
+                    }) {
+                        Icon(Icons.Filled.Settings, contentDescription = "Settings")
+                    }
                 }
             }
         }

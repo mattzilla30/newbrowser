@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -23,11 +24,19 @@ fun NewBrowserApp() {
     var screen by remember { mutableStateOf(Screen.Browser) }
     var homeUrl by remember { mutableStateOf(preferences.homeUrl) }
     var javaScriptEnabled by remember { mutableStateOf(preferences.javaScriptEnabled) }
+    var adBlockEnabled by remember { mutableStateOf(preferences.adBlockEnabled) }
+    var totalBlockedCount by remember { mutableLongStateOf(preferences.totalBlockedCount) }
 
     Box(modifier = Modifier.fillMaxSize()) {
         BrowserScreen(
             homeUrl = homeUrl,
             javaScriptEnabled = javaScriptEnabled,
+            adBlockEnabled = adBlockEnabled,
+            totalBlockedCount = totalBlockedCount,
+            onTotalBlockedCountChange = {
+                totalBlockedCount = it
+                preferences.totalBlockedCount = it
+            },
             onOpenSettings = { screen = Screen.Settings },
         )
 
@@ -35,6 +44,8 @@ fun NewBrowserApp() {
             SettingsScreen(
                 homeUrl = homeUrl,
                 javaScriptEnabled = javaScriptEnabled,
+                adBlockEnabled = adBlockEnabled,
+                totalBlockedCount = totalBlockedCount,
                 onHomeUrlChange = {
                     homeUrl = it
                     preferences.homeUrl = it
@@ -42,6 +53,10 @@ fun NewBrowserApp() {
                 onJavaScriptEnabledChange = {
                     javaScriptEnabled = it
                     preferences.javaScriptEnabled = it
+                },
+                onAdBlockEnabledChange = {
+                    adBlockEnabled = it
+                    preferences.adBlockEnabled = it
                 },
                 onClearBrowsingData = {
                     CookieManager.getInstance().removeAllCookies(null)

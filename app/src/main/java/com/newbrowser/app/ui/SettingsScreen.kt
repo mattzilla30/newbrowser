@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -20,14 +21,18 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
 @Composable
 fun SettingsScreen(
     homeUrl: String,
     javaScriptEnabled: Boolean,
+    adBlockEnabled: Boolean,
+    totalBlockedCount: Long,
     onHomeUrlChange: (String) -> Unit,
     onJavaScriptEnabledChange: (Boolean) -> Unit,
+    onAdBlockEnabledChange: (Boolean) -> Unit,
     onClearBrowsingData: () -> Unit,
     onBack: () -> Unit,
 ) {
@@ -52,6 +57,8 @@ fun SettingsScreen(
             }
 
             Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+                SectionHeader("General")
+
                 Text("Home page")
                 OutlinedTextField(
                     value = homeUrl,
@@ -62,22 +69,67 @@ fun SettingsScreen(
                     singleLine = true,
                 )
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text("Enable JavaScript")
-                    Switch(checked = javaScriptEnabled, onCheckedChange = onJavaScriptEnabledChange)
-                }
+                SettingSwitchRow(
+                    label = "Enable JavaScript",
+                    checked = javaScriptEnabled,
+                    onCheckedChange = onJavaScriptEnabledChange,
+                )
 
                 Button(
                     onClick = onClearBrowsingData,
-                    modifier = Modifier.padding(top = 24.dp),
+                    modifier = Modifier.padding(top = 24.dp, bottom = 8.dp),
                 ) {
                     Text("Clear browsing data")
                 }
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
+
+                SectionHeader("Shields")
+
+                SettingSwitchRow(
+                    label = "Block ads & trackers",
+                    checked = adBlockEnabled,
+                    onCheckedChange = onAdBlockEnabledChange,
+                )
+                Text(
+                    text = "Blocks known ad and tracker domains before they load, in the style of Brave's Shields.",
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(top = 4.dp, bottom = 16.dp),
+                )
+
+                Text(
+                    text = "$totalBlockedCount ads & trackers blocked",
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(bottom = 16.dp),
+                )
             }
         }
+    }
+}
+
+@Composable
+private fun SectionHeader(title: String) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.primary,
+        fontWeight = FontWeight.Bold,
+        modifier = Modifier.padding(bottom = 8.dp),
+    )
+}
+
+@Composable
+private fun SettingSwitchRow(
+    label: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(label)
+        Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }
