@@ -298,10 +298,12 @@ fun BrowserScreen(
                 private var fullscreenContainer: ViewGroup? = null
                 private var fullscreenCallback: CustomViewCallback? = null
 
-                override fun onProgressChanged(view: WebView?, newProgress: Int) {
-                    super.onProgressChanged(view, newProgress)
-                    tabManager.activeTab?.let { it.isLoading = newProgress in 1..99 }
-                }
+                // isLoading is owned by onPageStarted/onPageFinished only, deliberately: WebView
+                // doesn't strictly guarantee a final onProgressChanged(100) always fires (e.g.
+                // for cached or instant loads), and a stray onProgressChanged callback with
+                // newProgress < 100 arriving after onPageFinished could otherwise leave
+                // isLoading stuck true - which, mirrored into SwipeRefreshLayout.isRefreshing,
+                // blocks all touch input on the page.
 
                 override fun onReceivedTitle(view: WebView?, title: String?) {
                     super.onReceivedTitle(view, title)
@@ -481,9 +483,14 @@ fun BrowserScreen(
 
     // SwipeRefreshLayout uses classic touch interception rather than Compose's nested-scroll
     // protocol, which a plain embedded WebView doesn't participate in - that's why this wraps
-    // the WebView natively instead of using Material3's PullToRefreshBox.
+    // the WebView natively instead of using Material3's PullToRefreshBox. canChildScrollUp is
+    // overridden to check the WebView's own scrollY directly, rather than relying on the
+    // default View.canScrollVertically() path, so a downward drag partway down a page always
+    // scrolls the page instead of being claimed for the refresh gesture.
     val swipeRefreshLayout = remember {
-        SwipeRefreshLayout(context).apply {
+        object : SwipeRefreshLayout(context) {
+            override fun canChildScrollUp(): Boolean = webView.scrollY > 0
+        }.apply {
             addView(
                 webView,
                 ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT),
