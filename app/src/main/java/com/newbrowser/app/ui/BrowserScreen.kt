@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -24,6 +25,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -32,6 +34,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -46,15 +49,17 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import java.net.URLEncoder
 
-private const val HOME_URL = "https://duckduckgo.com"
-
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
-fun BrowserScreen() {
+fun BrowserScreen(
+    homeUrl: String,
+    javaScriptEnabled: Boolean,
+    onOpenSettings: () -> Unit,
+) {
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
 
-    var addressText by rememberSaveable { mutableStateOf(HOME_URL) }
+    var addressText by rememberSaveable { mutableStateOf(homeUrl) }
     var isLoading by remember { mutableStateOf(false) }
     var canGoBack by remember { mutableStateOf(false) }
     var canGoForward by remember { mutableStateOf(false) }
@@ -65,7 +70,7 @@ fun BrowserScreen() {
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT,
             )
-            settings.javaScriptEnabled = true
+            settings.javaScriptEnabled = javaScriptEnabled
             settings.domStorageEnabled = true
             settings.loadWithOverviewMode = true
             settings.useWideViewPort = true
@@ -95,7 +100,7 @@ fun BrowserScreen() {
                 }
             }
 
-            loadUrl(HOME_URL)
+            loadUrl(homeUrl)
         }
     }
 
@@ -103,8 +108,12 @@ fun BrowserScreen() {
         onDispose { webView.destroy() }
     }
 
+    LaunchedEffect(javaScriptEnabled) {
+        webView.settings.javaScriptEnabled = javaScriptEnabled
+    }
+
     fun navigateTo(input: String) {
-        val target = normalizeUrl(input)
+        val target = normalizeUrl(input, homeUrl)
         addressText = target
         webView.loadUrl(target)
         focusManager.clearFocus()
@@ -122,40 +131,17 @@ fun BrowserScreen() {
             tonalElevation = 2.dp,
         ) {
             Column {
-                Row(
+                OutlinedTextField(
+                    value = addressText,
+                    onValueChange = { addressText = it },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 8.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                    IconButton(onClick = { webView.goBack() }, enabled = canGoBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                    IconButton(onClick = { webView.goForward() }, enabled = canGoForward) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Forward")
-                    }
-                    IconButton(onClick = {
-                        if (isLoading) webView.stopLoading() else webView.reload()
-                    }) {
-                        Icon(
-                            if (isLoading) Icons.Filled.Close else Icons.Filled.Refresh,
-                            contentDescription = if (isLoading) "Stop" else "Reload",
-                        )
-                    }
-                    IconButton(onClick = { navigateTo(HOME_URL) }) {
-                        Icon(Icons.Filled.Home, contentDescription = "Home")
-                    }
-                    OutlinedTextField(
-                        value = addressText,
-                        onValueChange = { addressText = it },
-                        modifier = Modifier.weight(1f),
-                        singleLine = true,
-                        placeholder = { Text("Search or enter address") },
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Go),
-                        keyboardActions = KeyboardActions(onGo = { navigateTo(addressText) }),
-                    )
-                }
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    singleLine = true,
+                    placeholder = { Text("Search or enter address") },
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Go),
+                    keyboardActions = KeyboardActions(onGo = { navigateTo(addressText) }),
+                )
                 if (isLoading) {
                     LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                 }
@@ -163,15 +149,53 @@ fun BrowserScreen() {
         }
 
         AndroidView(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth(),
             factory = { webView },
         )
+
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .windowInsetsPadding(WindowInsets.navigationBars),
+            tonalElevation = 2.dp,
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                IconButton(onClick = { webView.goBack() }, enabled = canGoBack) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                }
+                IconButton(onClick = { webView.goForward() }, enabled = canGoForward) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Forward")
+                }
+                IconButton(onClick = {
+                    if (isLoading) webView.stopLoading() else webView.reload()
+                }) {
+                    Icon(
+                        if (isLoading) Icons.Filled.Close else Icons.Filled.Refresh,
+                        contentDescription = if (isLoading) "Stop" else "Reload",
+                    )
+                }
+                IconButton(onClick = { navigateTo(homeUrl) }) {
+                    Icon(Icons.Filled.Home, contentDescription = "Home")
+                }
+                IconButton(onClick = onOpenSettings) {
+                    Icon(Icons.Filled.Settings, contentDescription = "Settings")
+                }
+            }
+        }
     }
 }
 
-private fun normalizeUrl(input: String): String {
+private fun normalizeUrl(input: String, homeUrl: String): String {
     val trimmed = input.trim()
-    if (trimmed.isEmpty()) return HOME_URL
+    if (trimmed.isEmpty()) return homeUrl
 
     val looksLikeUrl = trimmed.contains("://") ||
         (!trimmed.contains(" ") && trimmed.contains("."))
