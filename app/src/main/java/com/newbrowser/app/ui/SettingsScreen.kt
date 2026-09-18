@@ -2,14 +2,18 @@ package com.newbrowser.app.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -19,11 +23,17 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.newbrowser.app.data.BrowserSettings
+import com.newbrowser.app.data.SEARCH_ENGINES
+import com.newbrowser.app.data.searchEngineFor
 
 @Composable
 fun SettingsScreen(
@@ -70,6 +80,17 @@ fun SettingsScreen(
                     onCheckedChange = appSettings::updateJavaScriptEnabled,
                 )
 
+                SearchEngineRow(
+                    selectedKey = appSettings.searchEngineKey,
+                    onSelect = appSettings::updateSearchEngineKey,
+                )
+
+                SettingSwitchRow(
+                    label = "Dark mode for web pages",
+                    checked = appSettings.darkModeForPages,
+                    onCheckedChange = appSettings::updateDarkModeForPages,
+                )
+
                 Button(
                     onClick = onClearBrowsingData,
                     modifier = Modifier.padding(top = 24.dp, bottom = 8.dp),
@@ -111,6 +132,39 @@ private fun SectionHeader(title: String) {
         fontWeight = FontWeight.Bold,
         modifier = Modifier.padding(bottom = 8.dp),
     )
+}
+
+@Composable
+private fun SearchEngineRow(
+    selectedKey: String,
+    onSelect: (String) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    Box {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { expanded = true }
+                .padding(vertical = 12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("Search engine")
+            Text(searchEngineFor(selectedKey).label)
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            SEARCH_ENGINES.forEach { engine ->
+                DropdownMenuItem(
+                    text = { Text(engine.label) },
+                    onClick = {
+                        expanded = false
+                        onSelect(engine.key)
+                    },
+                )
+            }
+        }
+    }
 }
 
 @Composable

@@ -2,7 +2,10 @@ package com.newbrowser.app.ui
 
 import android.annotation.SuppressLint
 import android.app.DownloadManager
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
 import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Bundle
@@ -16,6 +19,9 @@ import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.compose.BackHandler
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+import androidx.webkit.WebSettingsCompat
+import androidx.webkit.WebViewFeature
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -41,6 +47,7 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material.icons.filled.Tab
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.DropdownMenu
@@ -52,6 +59,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -74,7 +82,10 @@ import com.newbrowser.app.data.AdBlocker
 import com.newbrowser.app.data.BrowserDatabase
 import com.newbrowser.app.data.BrowserSettings
 import com.newbrowser.app.data.Suggestion
+import com.newbrowser.app.data.searchEngineFor
 import com.newbrowser.app.ui.tabs.TabManager
+import org.json.JSONObject
+import org.json.JSONTokener
 import java.io.ByteArrayInputStream
 import java.net.URLEncoder
 
@@ -105,6 +116,9 @@ fun BrowserScreen(
 
     var isBookmarked by remember(activeTab.url) { mutableStateOf(database.isBookmarked(activeTab.url)) }
 
+    var longPressLinkUrl by remember { mutableStateOf<String?>(null) }
+    var readerContent by remember { mutableStateOf<ReaderContent?>(null) }
+
     val webView = remember {
         WebView(context).apply {
             layoutParams = ViewGroup.LayoutParams(
@@ -115,6 +129,26 @@ fun BrowserScreen(
             settings.domStorageEnabled = true
             settings.loadWithOverviewMode = true
             settings.useWideViewPort = true
+            settings.setSupportZoom(true)
+            settings.builtInZoomControls = true
+            settings.displayZoomControls = false
+
+            if (WebViewFeature.isFeatureSupported(WebViewFeature.ALGORITHMIC_DARKENING)) {
+                WebSettingsCompat.setAlgorithmicDarkeningAllowed(settings, appSettings.darkModeForPages)
+            }
+
+            setOnLongClickListener {
+                val result = hitTestResult
+                val url = result.extra
+                val isLink = result.type == WebView.HitTestResult.SRC_ANCHOR_TYPE ||
+                    result.type == WebView.HitTestResult.SRC_IMAGE_ANCHOR_TYPE
+                if (url != null && isLink) {
+                    longPressLinkUrl = url
+                    true
+                } else {
+                    false
+                }
+            }
 
             webViewClient = object : WebViewClient() {
                 override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
@@ -139,6 +173,7 @@ fun BrowserScreen(
                     }
                     if (!tab.isIncognito && url != null) {
                         database.addHistoryEntry(url, tab.title.ifBlank { url })
+                        tabManager.persistTabs()
                     }
                 }
 
@@ -166,8 +201,10 @@ fun BrowserScreen(
 
                 override fun onReceivedTitle(view: WebView?, title: String?) {
                     super.onReceivedTitle(view, title)
+                    val tab = tabManager.activeTab ?: return
                     if (!title.isNullOrBlank()) {
-                        tabManager.activeTab?.let { it.title = title }
+                        tab.title = title
+                        if (!tab.isIncognito) tabManager.persistTabs()
                     }
                 }
             }
@@ -205,12 +242,35 @@ fun BrowserScreen(
         }
     }
 
+    // SwipeRefreshLayout uses classic touch interception rather than Compose's nested-scroll
+    // protocol, which a plain embedded WebView doesn't participate in - that's why this wraps
+    // the WebView natively instead of using Material3's PullToRefreshBox.
+    val swipeRefreshLayout = remember {
+        SwipeRefreshLayout(context).apply {
+            addView(
+                webView,
+                ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT),
+            )
+            setOnRefreshListener { webView.reload() }
+        }
+    }
+
     DisposableEffect(Unit) {
         onDispose { webView.destroy() }
     }
 
+    LaunchedEffect(activeTab.isLoading) {
+        swipeRefreshLayout.isRefreshing = activeTab.isLoading
+    }
+
     LaunchedEffect(appSettings.javaScriptEnabled) {
         webView.settings.javaScriptEnabled = appSettings.javaScriptEnabled
+    }
+
+    LaunchedEffect(appSettings.darkModeForPages) {
+        if (WebViewFeature.isFeatureSupported(WebViewFeature.ALGORITHMIC_DARKENING)) {
+            WebSettingsCompat.setAlgorithmicDarkeningAllowed(webView.settings, appSettings.darkModeForPages)
+        }
     }
 
     LaunchedEffect(tabManager.activeTabId) {
@@ -220,7 +280,7 @@ fun BrowserScreen(
     }
 
     fun navigateTo(input: String) {
-        val target = normalizeUrl(input, appSettings.homeUrl)
+        val target = normalizeUrl(input, appSettings.homeUrl, appSettings.searchEngineKey)
         activeTab.url = target
         webView.loadUrl(target)
         suggestions = emptyList()
@@ -237,10 +297,42 @@ fun BrowserScreen(
         webView.reload()
     }
 
+    fun sharePage() {
+        val sendIntent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_TEXT, activeTab.url)
+        }
+        context.startActivity(Intent.createChooser(sendIntent, null))
+    }
+
+    fun openReaderMode() {
+        webView.evaluateJavascript(READER_EXTRACTION_JS) { rawResult ->
+            val jsonText = try {
+                JSONTokener(rawResult).nextValue() as? String
+            } catch (e: Exception) {
+                null
+            }
+            val parsed = jsonText?.let {
+                try {
+                    JSONObject(it)
+                } catch (e: Exception) {
+                    null
+                }
+            }
+            if (parsed != null) {
+                readerContent = ReaderContent(
+                    title = parsed.optString("title").ifBlank { activeTab.title },
+                    content = parsed.optString("content"),
+                )
+            }
+        }
+    }
+
     BackHandler(enabled = activeTab.canGoBack) {
         webView.goBack()
     }
 
+    Box(modifier = Modifier.fillMaxSize()) {
     Column(modifier = Modifier.fillMaxSize()) {
         Surface(
             modifier = Modifier
@@ -355,7 +447,7 @@ fun BrowserScreen(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth(),
-            factory = { webView },
+            factory = { swipeRefreshLayout },
         )
 
         BackHandler(enabled = findBarVisible) {
@@ -444,6 +536,14 @@ fun BrowserScreen(
                                 toggleDesktopSite()
                             },
                         )
+                        DropdownMenuItem(text = { Text("Reader mode") }, onClick = {
+                            menuExpanded = false
+                            openReaderMode()
+                        })
+                        DropdownMenuItem(text = { Text("Share page") }, onClick = {
+                            menuExpanded = false
+                            sharePage()
+                        })
                     }
                 }
                 IconButton(onClick = { onNavigate(Screen.Settings) }) {
@@ -458,9 +558,50 @@ fun BrowserScreen(
             }
         }
     }
+
+    readerContent?.let { reader ->
+        ReaderScreen(
+            title = reader.title,
+            content = reader.content,
+            onClose = { readerContent = null },
+        )
+    }
+    }
+
+    longPressLinkUrl?.let { url ->
+        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        AlertDialog(
+            onDismissRequest = { longPressLinkUrl = null },
+            title = { Text(url, maxLines = 2) },
+            text = {
+                Column {
+                    TextButton(onClick = {
+                        tabManager.newTab(url = url, incognito = activeTab.isIncognito)
+                        longPressLinkUrl = null
+                    }) { Text("Open in new tab") }
+                    TextButton(onClick = {
+                        clipboard.setPrimaryClip(ClipData.newPlainText("link", url))
+                        longPressLinkUrl = null
+                    }) { Text("Copy link") }
+                    TextButton(onClick = {
+                        val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(Intent.EXTRA_TEXT, url)
+                        }
+                        context.startActivity(Intent.createChooser(sendIntent, null))
+                        longPressLinkUrl = null
+                    }) { Text("Share link") }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { longPressLinkUrl = null }) { Text("Cancel") }
+            },
+        )
+    }
 }
 
-private fun normalizeUrl(input: String, homeUrl: String): String {
+private fun normalizeUrl(input: String, homeUrl: String, searchEngineKey: String): String {
     val trimmed = input.trim()
     if (trimmed.isEmpty()) return homeUrl
 
@@ -470,6 +611,28 @@ private fun normalizeUrl(input: String, homeUrl: String): String {
     return when {
         trimmed.startsWith("http://") || trimmed.startsWith("https://") -> trimmed
         looksLikeUrl -> "https://$trimmed"
-        else -> "https://duckduckgo.com/html/?q=${URLEncoder.encode(trimmed, "UTF-8")}"
+        else -> {
+            val encoded = URLEncoder.encode(trimmed, "UTF-8")
+            searchEngineFor(searchEngineKey).urlTemplate.replace("%s", encoded)
+        }
     }
 }
+
+private const val READER_EXTRACTION_JS = """
+(function() {
+    function bestContent() {
+        var candidates = document.querySelectorAll('article, main, [role="main"]');
+        var best = null;
+        var bestLen = 0;
+        for (var i = 0; i < candidates.length; i++) {
+            var len = candidates[i].innerText.length;
+            if (len > bestLen) { bestLen = len; best = candidates[i]; }
+        }
+        if (best && bestLen > 200) return best.innerText;
+        return document.body.innerText;
+    }
+    return JSON.stringify({ title: document.title, content: bestContent() });
+})();
+"""
+
+data class ReaderContent(val title: String, val content: String)

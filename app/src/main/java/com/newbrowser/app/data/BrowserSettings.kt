@@ -24,6 +24,12 @@ class BrowserSettings(private val preferences: BrowserPreferences) {
     var totalBlockedCount by mutableStateOf(preferences.totalBlockedCount)
         private set
 
+    var searchEngineKey by mutableStateOf(preferences.searchEngineKey)
+        private set
+
+    var darkModeForPages by mutableStateOf(preferences.darkModeForPages)
+        private set
+
     fun updateHomeUrl(value: String) {
         homeUrl = value
         preferences.homeUrl = value
@@ -43,5 +49,15 @@ class BrowserSettings(private val preferences: BrowserPreferences) {
         if (delta <= 0) return
         totalBlockedCount += delta
         preferences.totalBlockedCount = totalBlockedCount
+    }
+
+    fun updateSearchEngineKey(value: String) {
+        searchEngineKey = value
+        preferences.searchEngineKey = value
+    }
+
+    fun updateDarkModeForPages(value: Boolean) {
+        darkModeForPages = value
+        preferences.darkModeForPages = value
     }
 }

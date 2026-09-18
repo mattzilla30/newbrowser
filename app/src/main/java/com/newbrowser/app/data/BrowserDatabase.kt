@@ -18,12 +18,16 @@ data class DownloadRecord(
 /** A URL+title suggestion surfaced while typing in the address bar. */
 data class Suggestion(val url: String, val title: String)
 
+/** An open, non-incognito tab persisted so it can be restored after the app restarts. */
+data class PersistedTab(val url: String, val title: String, val isActive: Boolean)
+
 private const val DB_NAME = "newbrowser.db"
-private const val DB_VERSION = 1
+private const val DB_VERSION = 2
 
 private const val TABLE_BOOKMARKS = "bookmarks"
 private const val TABLE_HISTORY = "history"
 private const val TABLE_DOWNLOADS = "downloads"
+private const val TABLE_OPEN_TABS = "open_tabs"
 
 class BrowserDatabase(context: Context) : SQLiteOpenHelper(context, DB_NAME, null, DB_VERSION) {
 
@@ -50,12 +54,21 @@ class BrowserDatabase(context: Context) : SQLiteOpenHelper(context, DB_NAME, nul
                 "file_name TEXT NOT NULL, " +
                 "started_at INTEGER NOT NULL)",
         )
+        db.execSQL(
+            "CREATE TABLE $TABLE_OPEN_TABS (" +
+                "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                "url TEXT NOT NULL, " +
+                "title TEXT NOT NULL, " +
+                "is_active INTEGER NOT NULL, " +
+                "position INTEGER NOT NULL)",
+        )
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
         db.execSQL("DROP TABLE IF EXISTS $TABLE_BOOKMARKS")
         db.execSQL("DROP TABLE IF EXISTS $TABLE_HISTORY")
         db.execSQL("DROP TABLE IF EXISTS $TABLE_DOWNLOADS")
+        db.execSQL("DROP TABLE IF EXISTS $TABLE_OPEN_TABS")
         onCreate(db)
     }
 
@@ -200,6 +213,50 @@ class BrowserDatabase(context: Context) : SQLiteOpenHelper(context, DB_NAME, nul
             put("started_at", System.currentTimeMillis())
         }
         writableDatabase.insert(TABLE_DOWNLOADS, null, values)
+    }
+
+    fun saveOpenTabs(tabs: List<PersistedTab>) {
+        val db = writableDatabase
+        db.beginTransaction()
+        try {
+            db.delete(TABLE_OPEN_TABS, null, null)
+            tabs.forEachIndexed { index, tab ->
+                val values = ContentValues().apply {
+                    put("url", tab.url)
+                    put("title", tab.title)
+                    put("is_active", if (tab.isActive) 1 else 0)
+                    put("position", index)
+                }
+                db.insert(TABLE_OPEN_TABS, null, values)
+            }
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
+        }
+    }
+
+    fun getOpenTabs(): List<PersistedTab> {
+        val result = mutableListOf<PersistedTab>()
+        readableDatabase.query(
+            TABLE_OPEN_TABS,
+            null,
+            null,
+            null,
+            null,
+            null,
+            "position ASC",
+        ).use { cursor ->
+            while (cursor.moveToNext()) {
+                result.add(
+                    PersistedTab(
+                        url = cursor.getString(cursor.getColumnIndexOrThrow("url")),
+                        title = cursor.getString(cursor.getColumnIndexOrThrow("title")),
+                        isActive = cursor.getInt(cursor.getColumnIndexOrThrow("is_active")) != 0,
+                    ),
+                )
+            }
+        }
+        return result
     }
 
     fun getDownloads(): List<DownloadRecord> {

@@ -22,7 +22,7 @@ fun NewBrowserApp() {
     val preferences = remember { BrowserPreferences(context) }
     val appSettings = remember { BrowserSettings(preferences) }
     val database = remember { BrowserDatabase(context) }
-    val tabManager = remember { TabManager { appSettings.homeUrl } }
+    val tabManager = remember { TabManager(database) { appSettings.homeUrl } }
 
     var screen by remember { mutableStateOf(Screen.Browser) }
 

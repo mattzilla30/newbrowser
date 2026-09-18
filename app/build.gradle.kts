@@ -54,6 +54,8 @@ dependencies {
     implementation(libs.core.ktx)
     implementation(libs.lifecycle.runtime.ktx)
     implementation(libs.activity.compose)
+    implementation(libs.webkit)
+    implementation(libs.swiperefreshlayout)
 
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.ui)
