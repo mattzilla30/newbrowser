@@ -1,3 +1,15 @@
 <resources>
-    <style name="Theme.NewBrowser" parent="android:Theme.Material.Light.NoActionBar" />
+    <!--
+        windowBackground/statusBarColor/navigationBarColor only matter for the brief frame
+        before enableEdgeToEdge() and Compose take over in onCreate; without them the platform
+        default (a plain white background from the Material.Light parent) flashes at cold start.
+        Kept dark unconditionally, regardless of the device's eventual light/dark theme, since a
+        dark flash reads as a neutral loading state either way and never looks as jarring as a
+        white one.
+    -->
+    <style name="Theme.NewBrowser" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/window_background</item>
+        <item name="android:statusBarColor">@color/window_background</item>
+        <item name="android:navigationBarColor">@color/window_background</item>
+    </style>
 </resources>
