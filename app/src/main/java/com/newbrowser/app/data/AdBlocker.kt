@@ -8,13 +8,36 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.util.concurrent.atomic.AtomicReference
 
-private val FILTER_LIST_URLS = listOf(
-    "https://easylist.to/easylist/easylist.txt",
-    "https://easylist.to/easylist/easyprivacy.txt",
-    "https://raw.githubusercontent.com/AdguardTeam/AdguardFilters/master/BaseFilter/sections/adservers.txt",
-    "https://raw.githubusercontent.com/AdguardTeam/AdguardFilters/master/BaseFilter/sections/general_url.txt",
-    "https://raw.githubusercontent.com/AdguardTeam/AdguardFilters/master/MobileFilter/sections/adservers.txt",
-    "https://raw.githubusercontent.com/AdguardTeam/AdguardFilters/master/MobileFilter/sections/general_url.txt",
+private enum class FilterFormat { ADBLOCK, HOSTS }
+
+private data class FilterSource(val url: String, val format: FilterFormat)
+
+private val FILTER_SOURCES = listOf(
+    FilterSource("https://easylist.to/easylist/easylist.txt", FilterFormat.ADBLOCK),
+    FilterSource("https://easylist.to/easylist/easyprivacy.txt", FilterFormat.ADBLOCK),
+    FilterSource(
+        "https://raw.githubusercontent.com/AdguardTeam/AdguardFilters/master/BaseFilter/sections/adservers.txt",
+        FilterFormat.ADBLOCK,
+    ),
+    FilterSource(
+        "https://raw.githubusercontent.com/AdguardTeam/AdguardFilters/master/BaseFilter/sections/general_url.txt",
+        FilterFormat.ADBLOCK,
+    ),
+    FilterSource(
+        "https://raw.githubusercontent.com/AdguardTeam/AdguardFilters/master/MobileFilter/sections/adservers.txt",
+        FilterFormat.ADBLOCK,
+    ),
+    FilterSource(
+        "https://raw.githubusercontent.com/AdguardTeam/AdguardFilters/master/MobileFilter/sections/general_url.txt",
+        FilterFormat.ADBLOCK,
+    ),
+    // Ads/trackers only cover part of what ad-block test pages check. This adds malware,
+    // cryptomining, gambling, adult, fake-news, and social-tracker domains, in hosts-file
+    // format ("0.0.0.0 domain.tld") rather than Adblock Plus syntax.
+    FilterSource(
+        "https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-gambling-porn-social/hosts",
+        FilterFormat.HOSTS,
+    ),
 )
 
 /**
@@ -46,6 +69,13 @@ private val BLOCK_RULE = Regex("""^\|\|([a-z0-9][a-z0-9.*_-]*?)\^(?:$|\$)""")
  * wrong to treat as "never block this domain anywhere", which is what a match here means.
  */
 private val ALLOW_RULE = Regex("""^@@\|\|([a-z0-9][a-z0-9.*_-]*?)\^$""")
+
+private val HOSTS_RULE = Regex("""^(?:0\.0\.0\.0|127\.0\.0\.1)\s+(\S+)""")
+private val LOCAL_HOST_NAMES = setOf(
+    "localhost", "localhost.localdomain", "local", "broadcasthost", "0.0.0.0",
+    "ip6-localhost", "ip6-loopback", "ip6-localnet", "ip6-mcastprefix",
+    "ip6-allnodes", "ip6-allrouters", "ip6-allhosts",
+)
 
 object AdBlocker {
     private lateinit var appContext: Context
@@ -93,16 +123,16 @@ object AdBlocker {
             val blocked = HashSet<String>()
             val allowed = HashSet<String>()
             var failureCount = 0
-            for (urlString in FILTER_LIST_URLS) {
+            for (source in FILTER_SOURCES) {
                 try {
-                    fetchRules(urlString, blocked, allowed)
+                    fetchRules(source, blocked, allowed)
                 } catch (e: Exception) {
                     failureCount++
                 }
             }
             if (failureCount > 0) {
                 return UpdateResult.Failure(
-                    "$failureCount of ${FILTER_LIST_URLS.size} filter sources failed to download. " +
+                    "$failureCount of ${FILTER_SOURCES.size} filter sources failed to download. " +
                         "Nothing was changed; check your connection and try again.",
                 )
             }
@@ -126,31 +156,45 @@ object AdBlocker {
         }
     }
 
-    private fun fetchRules(urlString: String, blocked: MutableSet<String>, allowed: MutableSet<String>) {
-        val connection = URL(urlString).openConnection() as HttpURLConnection
+    private fun fetchRules(source: FilterSource, blocked: MutableSet<String>, allowed: MutableSet<String>) {
+        val connection = URL(source.url).openConnection() as HttpURLConnection
         connection.connectTimeout = 15_000
         connection.readTimeout = 20_000
         connection.instanceFollowRedirects = true
         try {
             connection.inputStream.bufferedReader().useLines { lines ->
                 for (rawLine in lines) {
-                    val line = rawLine.trim()
-                    if (line.isEmpty() || line.startsWith("!") || line.startsWith("[") || line.contains("*")) {
-                        continue
-                    }
-                    val allowMatch = ALLOW_RULE.find(line)
-                    if (allowMatch != null) {
-                        allowed.add(allowMatch.groupValues[1].lowercase())
-                        continue
-                    }
-                    val blockMatch = BLOCK_RULE.find(line)
-                    if (blockMatch != null) {
-                        blocked.add(blockMatch.groupValues[1].lowercase())
+                    val line = rawLine.trim().lowercase()
+                    if (line.isEmpty()) continue
+                    when (source.format) {
+                        FilterFormat.ADBLOCK -> parseAdblockLine(line, blocked, allowed)
+                        FilterFormat.HOSTS -> parseHostsLine(line, blocked)
                     }
                 }
             }
         } finally {
             connection.disconnect()
+        }
+    }
+
+    private fun parseAdblockLine(line: String, blocked: MutableSet<String>, allowed: MutableSet<String>) {
+        if (line.startsWith("!") || line.startsWith("[") || line.contains("*")) return
+        val allowMatch = ALLOW_RULE.find(line)
+        if (allowMatch != null) {
+            allowed.add(allowMatch.groupValues[1])
+            return
+        }
+        val blockMatch = BLOCK_RULE.find(line)
+        if (blockMatch != null) {
+            blocked.add(blockMatch.groupValues[1])
+        }
+    }
+
+    private fun parseHostsLine(line: String, blocked: MutableSet<String>) {
+        if (line.startsWith("#")) return
+        val domain = HOSTS_RULE.find(line)?.groupValues?.get(1) ?: return
+        if ('.' in domain && domain !in LOCAL_HOST_NAMES) {
+            blocked.add(domain)
         }
     }
 
