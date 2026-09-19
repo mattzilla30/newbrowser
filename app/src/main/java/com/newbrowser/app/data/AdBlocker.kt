@@ -9,14 +9,43 @@ import java.net.URL
 import java.util.concurrent.atomic.AtomicReference
 
 private val FILTER_LIST_URLS = listOf(
+    "https://easylist.to/easylist/easylist.txt",
+    "https://easylist.to/easylist/easyprivacy.txt",
     "https://raw.githubusercontent.com/AdguardTeam/AdguardFilters/master/BaseFilter/sections/adservers.txt",
     "https://raw.githubusercontent.com/AdguardTeam/AdguardFilters/master/BaseFilter/sections/general_url.txt",
     "https://raw.githubusercontent.com/AdguardTeam/AdguardFilters/master/MobileFilter/sections/adservers.txt",
-    "https://easylist.to/easylist/easylist.txt",
+    "https://raw.githubusercontent.com/AdguardTeam/AdguardFilters/master/MobileFilter/sections/general_url.txt",
+)
+
+/**
+ * Well-known ad/tracker domains that the filter lists above only cover with path- or
+ * option-qualified rules (which this parser doesn't attempt to match), not a bare `||domain^`
+ * rule. Always unioned into the parsed result so a filter-list quirk upstream can't silently
+ * drop a domain this app used to block.
+ */
+private val SUPPLEMENTAL_DOMAINS = setOf(
+    "doubleclick.net", "2mdn.net", "googlesyndication.com", "googleadservices.com",
+    "adservice.google.com", "amazon-adsystem.com", "adnxs.com", "adsrvr.org", "moatads.com",
+    "criteo.com", "criteo.net", "taboola.com", "outbrain.com", "pubmatic.com", "rubiconproject.com",
+    "openx.net", "casalemedia.com", "bidswitch.net", "media.net", "adroll.com", "adform.net",
+    "adsafeprotected.com", "serving-sys.com", "mathtag.com", "bluekai.com", "exelator.com",
+    "yieldmo.com", "sharethrough.com", "33across.com", "smartadserver.com", "flashtalking.com",
+    "innovid.com", "spotxchange.com", "contextweb.com", "sovrn.com", "gumgum.com", "advertising.com",
+    "yieldlab.net", "adition.com", "smaato.com", "inmobi.com", "chartboost.com", "vungle.com",
+    "applovin.com", "google-analytics.com", "googletagmanager.com", "googletagservices.com",
+    "scorecardresearch.com", "quantserve.com", "mixpanel.com", "segment.io", "segment.com",
+    "hotjar.com", "mouseflow.com", "crazyegg.com", "fullstory.com", "amplitude.com",
+    "connect.facebook.net", "facebook.net",
 )
 
 private val BLOCK_RULE = Regex("""^\|\|([a-z0-9][a-z0-9.*_-]*?)\^(?:$|\$)""")
-private val ALLOW_RULE = Regex("""^@@\|\|([a-z0-9][a-z0-9.*_-]*?)\^(?:$|\$)""")
+
+/**
+ * Unlike [BLOCK_RULE], this requires the line to end right after `^`: an exception with
+ * options after it (`@@||domain^$domain=example.com`) is scoped to specific sites and would be
+ * wrong to treat as "never block this domain anywhere", which is what a match here means.
+ */
+private val ALLOW_RULE = Regex("""^@@\|\|([a-z0-9][a-z0-9.*_-]*?)\^$""")
 
 object AdBlocker {
     private lateinit var appContext: Context
@@ -63,18 +92,21 @@ object AdBlocker {
         return try {
             val blocked = HashSet<String>()
             val allowed = HashSet<String>()
-            var fetchedAny = false
+            var failureCount = 0
             for (urlString in FILTER_LIST_URLS) {
                 try {
                     fetchRules(urlString, blocked, allowed)
-                    fetchedAny = true
                 } catch (e: Exception) {
-                    // One source failing shouldn't sink the whole update.
+                    failureCount++
                 }
             }
-            if (!fetchedAny) {
-                return UpdateResult.Failure("Couldn't reach any filter list. Check your connection and try again.")
+            if (failureCount > 0) {
+                return UpdateResult.Failure(
+                    "$failureCount of ${FILTER_LIST_URLS.size} filter sources failed to download. " +
+                        "Nothing was changed; check your connection and try again.",
+                )
             }
+            blocked.addAll(SUPPLEMENTAL_DOMAINS)
             blocked.removeAll(allowed)
             val pruned = pruneRedundantSubdomains(blocked)
 
