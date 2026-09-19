@@ -24,6 +24,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -69,6 +70,15 @@ fun BookmarksScreen(
     BackHandler(onBack = onBack)
     val context = LocalContext.current
     var bookmarks by remember { mutableStateOf(database.getBookmarks()) }
+    var query by remember { mutableStateOf("") }
+
+    val filtered = remember(bookmarks, query) {
+        if (query.isBlank()) {
+            bookmarks
+        } else {
+            bookmarks.filter { it.url.contains(query, ignoreCase = true) || it.title.contains(query, ignoreCase = true) }
+        }
+    }
 
     val importLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.GetContent(),
@@ -132,10 +142,20 @@ fun BookmarksScreen(
                 }
             }
 
-            if (bookmarks.isEmpty()) {
+            OutlinedTextField(
+                value = query,
+                onValueChange = { query = it },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                singleLine = true,
+                placeholder = { Text("Search bookmarks") },
+            )
+
+            if (filtered.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize()) {
                     Text(
-                        text = "No bookmarks yet",
+                        text = if (bookmarks.isEmpty()) "No bookmarks yet" else "No matches",
                         modifier = Modifier
                             .align(Alignment.Center)
                             .padding(16.dp),
@@ -143,7 +163,7 @@ fun BookmarksScreen(
                 }
             } else {
                 LazyColumn(modifier = Modifier.fillMaxSize()) {
-                    items(bookmarks, key = { it.id }) { bookmark ->
+                    items(filtered, key = { it.id }) { bookmark ->
                         BookmarkRow(
                             bookmark = bookmark,
                             onOpen = { onOpen(bookmark.url) },

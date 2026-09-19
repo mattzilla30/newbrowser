@@ -117,6 +117,7 @@ import com.newbrowser.app.ui.tabs.NEW_TAB_URL
 import com.newbrowser.app.ui.tabs.TabManager
 import org.json.JSONObject
 import org.json.JSONTokener
+import java.io.File
 import java.net.URLEncoder
 
 private const val DESKTOP_USER_AGENT =
@@ -576,6 +577,22 @@ fun BrowserScreen(
         printManager.print(jobName, adapter, PrintAttributes.Builder().build())
     }
 
+    fun savePageOffline() {
+        val dir = context.getExternalFilesDir("saved_pages") ?: context.filesDir
+        val safeTitle = activeTab.title.ifBlank { "page" }
+            .take(50)
+            .replace(Regex("[^A-Za-z0-9 _-]"), "")
+            .ifBlank { "page" }
+        val file = File(dir, "${safeTitle}_${System.currentTimeMillis()}.mht")
+        val pageUrl = activeTab.url
+        val pageTitle = activeTab.title.ifBlank { pageUrl }
+        webView.saveWebArchive(file.absolutePath, false) { savedPath ->
+            if (savedPath != null) {
+                database.addSavedPage(pageUrl, pageTitle, savedPath)
+            }
+        }
+    }
+
     fun addToHomeScreen() {
         if (!ShortcutManagerCompat.isRequestPinShortcutSupported(context)) return
         val shortcutIntent = Intent(context, MainActivity::class.java).apply {
@@ -859,6 +876,10 @@ fun BrowserScreen(
                             menuExpanded = false
                             printPage()
                         })
+                        DropdownMenuItem(text = { Text("Save page offline") }, onClick = {
+                            menuExpanded = false
+                            savePageOffline()
+                        })
                         DropdownMenuItem(text = { Text("Add to Home screen") }, onClick = {
                             menuExpanded = false
                             addToHomeScreen()
@@ -1136,7 +1157,7 @@ private fun normalizeUrl(input: String, homeUrl: String, searchEngineKey: String
         (!trimmed.contains(" ") && trimmed.contains("."))
 
     return when {
-        trimmed.startsWith("http://") || trimmed.startsWith("https://") -> trimmed
+        trimmed.startsWith("http://") || trimmed.startsWith("https://") || trimmed.startsWith("file://") -> trimmed
         looksLikeUrl -> "https://$trimmed"
         else -> {
             val encoded = URLEncoder.encode(trimmed, "UTF-8")

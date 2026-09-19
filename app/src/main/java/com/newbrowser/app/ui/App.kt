@@ -96,6 +96,10 @@ fun NewBrowserApp(
 
             Screen.Downloads -> DownloadsScreen(
                 database = database,
+                onOpenSavedPage = { url ->
+                    tabManager.onNavigate?.invoke(url)
+                    screen = Screen.Browser
+                },
                 onBack = { screen = Screen.Browser },
             )
 

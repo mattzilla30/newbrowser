@@ -42,6 +42,20 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!--
+                Without this, the app can only ever be opened from its own launcher icon: it
+                can't be offered when a link is tapped elsewhere, and Android won't list it as
+                an option under Settings > Apps > Default apps > Browser app. autoVerify is left
+                off since that requires hosting a Digital Asset Links file, which this app has
+                nowhere to serve from; the user still gets the disambiguation/"always" prompt.
+            -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="http" />
+                <data android:scheme="https" />
+            </intent-filter>
         </activity>
     </application>
 </manifest>

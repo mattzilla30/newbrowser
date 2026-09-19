@@ -38,8 +38,11 @@ data class SitePermission(val origin: String, val permission: String, val grante
 /** A page saved for later, distinct from bookmarks by having a read/unread state. */
 data class ReadingListEntry(val id: Long, val url: String, val title: String, val addedAt: Long, val isRead: Boolean)
 
+/** An offline MHTML snapshot of a page, saved via WebView.saveWebArchive. */
+data class SavedPage(val id: Long, val url: String, val title: String, val filePath: String, val savedAt: Long)
+
 private const val DB_NAME = "newbrowser.db"
-private const val DB_VERSION = 4
+private const val DB_VERSION = 5
 
 private const val TABLE_BOOKMARKS = "bookmarks"
 private const val TABLE_HISTORY = "history"
@@ -47,6 +50,7 @@ private const val TABLE_DOWNLOADS = "downloads"
 private const val TABLE_OPEN_TABS = "open_tabs"
 private const val TABLE_SITE_PERMISSIONS = "site_permissions"
 private const val TABLE_READING_LIST = "reading_list"
+private const val TABLE_SAVED_PAGES = "saved_pages"
 
 class BrowserDatabase(context: Context) : SQLiteOpenHelper(context, DB_NAME, null, DB_VERSION) {
 
@@ -99,6 +103,14 @@ class BrowserDatabase(context: Context) : SQLiteOpenHelper(context, DB_NAME, nul
                 "added_at INTEGER NOT NULL, " +
                 "is_read INTEGER NOT NULL DEFAULT 0)",
         )
+        db.execSQL(
+            "CREATE TABLE $TABLE_SAVED_PAGES (" +
+                "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                "url TEXT NOT NULL, " +
+                "title TEXT NOT NULL, " +
+                "file_path TEXT NOT NULL, " +
+                "saved_at INTEGER NOT NULL)",
+        )
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
@@ -108,6 +120,7 @@ class BrowserDatabase(context: Context) : SQLiteOpenHelper(context, DB_NAME, nul
         db.execSQL("DROP TABLE IF EXISTS $TABLE_OPEN_TABS")
         db.execSQL("DROP TABLE IF EXISTS $TABLE_SITE_PERMISSIONS")
         db.execSQL("DROP TABLE IF EXISTS $TABLE_READING_LIST")
+        db.execSQL("DROP TABLE IF EXISTS $TABLE_SAVED_PAGES")
         onCreate(db)
     }
 
@@ -473,6 +486,50 @@ class BrowserDatabase(context: Context) : SQLiteOpenHelper(context, DB_NAME, nul
                         url = cursor.getString(cursor.getColumnIndexOrThrow("url")),
                         fileName = cursor.getString(cursor.getColumnIndexOrThrow("file_name")),
                         startedAt = cursor.getLong(cursor.getColumnIndexOrThrow("started_at")),
+                    ),
+                )
+            }
+        }
+        return result
+    }
+
+    fun removeDownload(id: Long) {
+        writableDatabase.delete(TABLE_DOWNLOADS, "id = ?", arrayOf(id.toString()))
+    }
+
+    fun addSavedPage(url: String, title: String, filePath: String) {
+        val values = ContentValues().apply {
+            put("url", url)
+            put("title", title)
+            put("file_path", filePath)
+            put("saved_at", System.currentTimeMillis())
+        }
+        writableDatabase.insert(TABLE_SAVED_PAGES, null, values)
+    }
+
+    fun removeSavedPage(id: Long) {
+        writableDatabase.delete(TABLE_SAVED_PAGES, "id = ?", arrayOf(id.toString()))
+    }
+
+    fun getSavedPages(): List<SavedPage> {
+        val result = mutableListOf<SavedPage>()
+        readableDatabase.query(
+            TABLE_SAVED_PAGES,
+            null,
+            null,
+            null,
+            null,
+            null,
+            "saved_at DESC",
+        ).use { cursor ->
+            while (cursor.moveToNext()) {
+                result.add(
+                    SavedPage(
+                        id = cursor.getLong(cursor.getColumnIndexOrThrow("id")),
+                        url = cursor.getString(cursor.getColumnIndexOrThrow("url")),
+                        title = cursor.getString(cursor.getColumnIndexOrThrow("title")),
+                        filePath = cursor.getString(cursor.getColumnIndexOrThrow("file_path")),
+                        savedAt = cursor.getLong(cursor.getColumnIndexOrThrow("saved_at")),
                     ),
                 )
             }
