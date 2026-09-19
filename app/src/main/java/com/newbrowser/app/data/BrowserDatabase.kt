@@ -18,20 +18,35 @@ data class DownloadRecord(
 /** A URL+title suggestion surfaced while typing in the address bar. */
 data class Suggestion(val url: String, val title: String)
 
-/** An open, non-incognito tab persisted so it can be restored after the app restarts. */
-data class PersistedTab(val url: String, val title: String, val isActive: Boolean)
+/**
+ * An open, non-incognito tab persisted so it can be restored after the app restarts.
+ * Group membership rides along on the same row rather than a separate table, since a tab's
+ * position in this list is how it's matched back up on restore; there's no other stable id.
+ */
+data class PersistedTab(
+    val url: String,
+    val title: String,
+    val isActive: Boolean,
+    val groupId: String? = null,
+    val groupName: String? = null,
+    val groupColorIndex: Int = 0,
+)
 
 /** A remembered allow/deny decision for one origin + permission ("media" or "location"). */
 data class SitePermission(val origin: String, val permission: String, val granted: Boolean)
 
+/** A page saved for later, distinct from bookmarks by having a read/unread state. */
+data class ReadingListEntry(val id: Long, val url: String, val title: String, val addedAt: Long, val isRead: Boolean)
+
 private const val DB_NAME = "newbrowser.db"
-private const val DB_VERSION = 3
+private const val DB_VERSION = 4
 
 private const val TABLE_BOOKMARKS = "bookmarks"
 private const val TABLE_HISTORY = "history"
 private const val TABLE_DOWNLOADS = "downloads"
 private const val TABLE_OPEN_TABS = "open_tabs"
 private const val TABLE_SITE_PERMISSIONS = "site_permissions"
+private const val TABLE_READING_LIST = "reading_list"
 
 class BrowserDatabase(context: Context) : SQLiteOpenHelper(context, DB_NAME, null, DB_VERSION) {
 
@@ -64,7 +79,10 @@ class BrowserDatabase(context: Context) : SQLiteOpenHelper(context, DB_NAME, nul
                 "url TEXT NOT NULL, " +
                 "title TEXT NOT NULL, " +
                 "is_active INTEGER NOT NULL, " +
-                "position INTEGER NOT NULL)",
+                "position INTEGER NOT NULL, " +
+                "group_id TEXT, " +
+                "group_name TEXT, " +
+                "group_color INTEGER NOT NULL DEFAULT 0)",
         )
         db.execSQL(
             "CREATE TABLE $TABLE_SITE_PERMISSIONS (" +
@@ -72,6 +90,14 @@ class BrowserDatabase(context: Context) : SQLiteOpenHelper(context, DB_NAME, nul
                 "permission TEXT NOT NULL, " +
                 "granted INTEGER NOT NULL, " +
                 "PRIMARY KEY (origin, permission))",
+        )
+        db.execSQL(
+            "CREATE TABLE $TABLE_READING_LIST (" +
+                "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                "url TEXT NOT NULL UNIQUE, " +
+                "title TEXT NOT NULL, " +
+                "added_at INTEGER NOT NULL, " +
+                "is_read INTEGER NOT NULL DEFAULT 0)",
         )
     }
 
@@ -81,6 +107,7 @@ class BrowserDatabase(context: Context) : SQLiteOpenHelper(context, DB_NAME, nul
         db.execSQL("DROP TABLE IF EXISTS $TABLE_DOWNLOADS")
         db.execSQL("DROP TABLE IF EXISTS $TABLE_OPEN_TABS")
         db.execSQL("DROP TABLE IF EXISTS $TABLE_SITE_PERMISSIONS")
+        db.execSQL("DROP TABLE IF EXISTS $TABLE_READING_LIST")
         onCreate(db)
     }
 
@@ -238,6 +265,9 @@ class BrowserDatabase(context: Context) : SQLiteOpenHelper(context, DB_NAME, nul
                     put("title", tab.title)
                     put("is_active", if (tab.isActive) 1 else 0)
                     put("position", index)
+                    put("group_id", tab.groupId)
+                    put("group_name", tab.groupName)
+                    put("group_color", tab.groupColorIndex)
                 }
                 db.insert(TABLE_OPEN_TABS, null, values)
             }
@@ -264,6 +294,107 @@ class BrowserDatabase(context: Context) : SQLiteOpenHelper(context, DB_NAME, nul
                         url = cursor.getString(cursor.getColumnIndexOrThrow("url")),
                         title = cursor.getString(cursor.getColumnIndexOrThrow("title")),
                         isActive = cursor.getInt(cursor.getColumnIndexOrThrow("is_active")) != 0,
+                        groupId = cursor.getString(cursor.getColumnIndexOrThrow("group_id")),
+                        groupName = cursor.getString(cursor.getColumnIndexOrThrow("group_name")),
+                        groupColorIndex = cursor.getInt(cursor.getColumnIndexOrThrow("group_color")),
+                    ),
+                )
+            }
+        }
+        return result
+    }
+
+    /** Most-visited distinct pages, for the new-tab speed dial. */
+    fun getTopSites(limit: Int = 8): List<HistoryEntry> {
+        val result = mutableListOf<HistoryEntry>()
+        readableDatabase.rawQuery(
+            "SELECT MIN(id) AS id, url, MAX(title) AS title, COUNT(*) AS visits, MAX(visited_at) AS visited_at " +
+                "FROM $TABLE_HISTORY GROUP BY url ORDER BY visits DESC, visited_at DESC LIMIT ?",
+            arrayOf(limit.toString()),
+        ).use { cursor ->
+            while (cursor.moveToNext()) {
+                result.add(
+                    HistoryEntry(
+                        id = cursor.getLong(cursor.getColumnIndexOrThrow("id")),
+                        url = cursor.getString(cursor.getColumnIndexOrThrow("url")),
+                        title = cursor.getString(cursor.getColumnIndexOrThrow("title")),
+                        visitedAt = cursor.getLong(cursor.getColumnIndexOrThrow("visited_at")),
+                    ),
+                )
+            }
+        }
+        return result
+    }
+
+    /** Bulk-inserts bookmarks parsed from an imported Netscape-format bookmarks HTML file. */
+    fun importBookmarks(entries: List<Pair<String, String>>) {
+        val db = writableDatabase
+        db.beginTransaction()
+        try {
+            entries.forEach { (url, title) ->
+                val values = ContentValues().apply {
+                    put("url", url)
+                    put("title", title)
+                    put("created_at", System.currentTimeMillis())
+                }
+                db.insertWithOnConflict(TABLE_BOOKMARKS, null, values, SQLiteDatabase.CONFLICT_IGNORE)
+            }
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
+        }
+    }
+
+    fun addToReadingList(url: String, title: String) {
+        val values = ContentValues().apply {
+            put("url", url)
+            put("title", title)
+            put("added_at", System.currentTimeMillis())
+            put("is_read", 0)
+        }
+        writableDatabase.insertWithOnConflict(TABLE_READING_LIST, null, values, SQLiteDatabase.CONFLICT_REPLACE)
+    }
+
+    fun removeFromReadingList(url: String) {
+        writableDatabase.delete(TABLE_READING_LIST, "url = ?", arrayOf(url))
+    }
+
+    fun isInReadingList(url: String): Boolean {
+        readableDatabase.query(
+            TABLE_READING_LIST,
+            arrayOf("id"),
+            "url = ?",
+            arrayOf(url),
+            null,
+            null,
+            null,
+        ).use { cursor -> return cursor.moveToFirst() }
+    }
+
+    fun setReadingListEntryRead(id: Long, isRead: Boolean) {
+        val values = ContentValues().apply { put("is_read", if (isRead) 1 else 0) }
+        writableDatabase.update(TABLE_READING_LIST, values, "id = ?", arrayOf(id.toString()))
+    }
+
+    fun getReadingList(): List<ReadingListEntry> {
+        val result = mutableListOf<ReadingListEntry>()
+        readableDatabase.query(
+            TABLE_READING_LIST,
+            null,
+            null,
+            null,
+            null,
+            null,
+            "added_at DESC",
+        ).use { cursor ->
+            while (cursor.moveToNext()) {
+                result.add(
+                    ReadingListEntry(
+                        id = cursor.getLong(cursor.getColumnIndexOrThrow("id")),
+                        url = cursor.getString(cursor.getColumnIndexOrThrow("url")),
+                        title = cursor.getString(cursor.getColumnIndexOrThrow("title")),
+                        addedAt = cursor.getLong(cursor.getColumnIndexOrThrow("added_at")),
+                        isRead = cursor.getInt(cursor.getColumnIndexOrThrow("is_read")) != 0,
                     ),
                 )
             }

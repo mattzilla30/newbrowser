@@ -136,6 +136,22 @@ fun SettingsScreen(
                     style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.padding(top = 4.dp, bottom = 16.dp),
                 )
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
+
+                SectionHeader("Developer")
+
+                SettingSwitchRow(
+                    label = "Remote debugging",
+                    checked = appSettings.remoteDebuggingEnabled,
+                    onCheckedChange = appSettings::updateRemoteDebuggingEnabled,
+                )
+                Text(
+                    text = "Inspect this browser's open pages from Chrome DevTools on a computer: " +
+                        "connect the device over USB, then open chrome://inspect in Chrome.",
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(top = 4.dp, bottom = 16.dp),
+                )
             }
         }
     }

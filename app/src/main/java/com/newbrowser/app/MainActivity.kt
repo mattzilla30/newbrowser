@@ -1,5 +1,6 @@
 package com.newbrowser.app
 
+import android.app.PictureInPictureParams
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -9,6 +10,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.newbrowser.app.ui.NewBrowserApp
+import com.newbrowser.app.ui.PipController
 import com.newbrowser.app.ui.theme.NewBrowserTheme
 
 class MainActivity : ComponentActivity() {
@@ -31,5 +33,15 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         pendingUrl = intent.dataString
+    }
+
+    // Fires when the user leaves via Home/recents/another app, not on every pause (e.g. not
+    // for a permission dialog or the share sheet) - exactly when a playing fullscreen video
+    // should follow into a floating window instead of just stopping off-screen.
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        if (PipController.isFullscreenVideoActive) {
+            enterPictureInPictureMode(PictureInPictureParams.Builder().build())
+        }
     }
 }

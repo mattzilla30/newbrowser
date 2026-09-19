@@ -30,6 +30,9 @@ class BrowserSettings(private val preferences: BrowserPreferences) {
     var doNotTrack by mutableStateOf(preferences.doNotTrack)
         private set
 
+    var remoteDebuggingEnabled by mutableStateOf(preferences.remoteDebuggingEnabled)
+        private set
+
     fun updateHomeUrl(value: String) {
         homeUrl = value
         preferences.homeUrl = value
@@ -58,5 +61,10 @@ class BrowserSettings(private val preferences: BrowserPreferences) {
     fun updateDoNotTrack(value: Boolean) {
         doNotTrack = value
         preferences.doNotTrack = value
+    }
+
+    fun updateRemoteDebuggingEnabled(value: Boolean) {
+        remoteDebuggingEnabled = value
+        preferences.remoteDebuggingEnabled = value
     }
 }

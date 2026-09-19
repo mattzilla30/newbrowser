@@ -22,5 +22,8 @@ class BrowserTab(
     var canGoBack by mutableStateOf(false)
     var canGoForward by mutableStateOf(false)
     var requestDesktopSite by mutableStateOf(false)
+    var groupId by mutableStateOf<String?>(null)
+    var groupName by mutableStateOf<String?>(null)
+    var groupColorIndex by mutableStateOf(0)
     var savedState: Bundle? = null
 }

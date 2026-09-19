@@ -9,6 +9,7 @@ private const val KEY_SEARCH_ENGINE = "search_engine"
 private const val KEY_DARK_MODE_FOR_PAGES = "dark_mode_for_pages"
 private const val KEY_BLOCK_POPUPS = "block_popups"
 private const val KEY_DO_NOT_TRACK = "do_not_track"
+private const val KEY_REMOTE_DEBUGGING_ENABLED = "remote_debugging_enabled"
 private const val DEFAULT_HOME_URL = "https://duckduckgo.com"
 private const val DEFAULT_SEARCH_ENGINE = "duckduckgo"
 
@@ -38,4 +39,8 @@ class BrowserPreferences(context: Context) {
     var doNotTrack: Boolean
         get() = prefs.getBoolean(KEY_DO_NOT_TRACK, false)
         set(value) = prefs.edit().putBoolean(KEY_DO_NOT_TRACK, value).apply()
+
+    var remoteDebuggingEnabled: Boolean
+        get() = prefs.getBoolean(KEY_REMOTE_DEBUGGING_ENABLED, false)
+        set(value) = prefs.edit().putBoolean(KEY_REMOTE_DEBUGGING_ENABLED, value).apply()
 }

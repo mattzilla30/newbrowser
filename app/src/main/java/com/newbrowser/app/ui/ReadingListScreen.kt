@@ -1,8 +1,6 @@
 package com.newbrowser.app.ui
 
 import androidx.activity.compose.BackHandler
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,8 +15,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.FileOpen
+import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -32,44 +31,19 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.newbrowser.app.data.Bookmark
 import com.newbrowser.app.data.BrowserDatabase
-
-private val BOOKMARK_HTML_ENTRY_RE = Regex(
-    """<A[^>]*HREF="([^"]+)"[^>]*>([^<]*)</A>""",
-    RegexOption.IGNORE_CASE,
-)
+import com.newbrowser.app.data.ReadingListEntry
 
 @Composable
-fun BookmarksScreen(
+fun ReadingListScreen(
     database: BrowserDatabase,
     onOpen: (String) -> Unit,
     onBack: () -> Unit,
 ) {
     BackHandler(onBack = onBack)
-    val context = LocalContext.current
-    var bookmarks by remember { mutableStateOf(database.getBookmarks()) }
-
-    val importLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.GetContent(),
-    ) { uri ->
-        if (uri == null) return@rememberLauncherForActivityResult
-        val html = try {
-            context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
-        } catch (e: Exception) {
-            null
-        } ?: return@rememberLauncherForActivityResult
-        val entries = BOOKMARK_HTML_ENTRY_RE.findAll(html)
-            .map { it.groupValues[1] to it.groupValues[2].trim() }
-            .filter { (url, _) -> url.isNotBlank() }
-            .toList()
-        if (entries.isNotEmpty()) {
-            database.importBookmarks(entries)
-            bookmarks = database.getBookmarks()
-        }
-    }
+    var entries by remember { mutableStateOf(database.getReadingList()) }
 
     Surface(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -87,35 +61,37 @@ fun BookmarksScreen(
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                 }
                 Text(
-                    text = "Bookmarks",
+                    text = "Reading List",
                     style = MaterialTheme.typography.titleLarge,
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(start = 8.dp),
+                    modifier = Modifier.padding(start = 8.dp),
                 )
-                IconButton(onClick = { importLauncher.launch("text/html") }) {
-                    Icon(Icons.Filled.FileOpen, contentDescription = "Import bookmarks")
-                }
             }
 
-            if (bookmarks.isEmpty()) {
+            if (entries.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize()) {
                     Text(
-                        text = "No bookmarks yet",
+                        text = "Nothing saved yet. Use \"Save to Reading List\" from a page's menu.",
                         modifier = Modifier
                             .align(Alignment.Center)
-                            .padding(16.dp),
+                            .padding(32.dp),
                     )
                 }
             } else {
                 LazyColumn(modifier = Modifier.fillMaxSize()) {
-                    items(bookmarks, key = { it.id }) { bookmark ->
-                        BookmarkRow(
-                            bookmark = bookmark,
-                            onOpen = { onOpen(bookmark.url) },
+                    items(entries, key = { it.id }) { entry ->
+                        ReadingListRow(
+                            entry = entry,
+                            onOpen = {
+                                if (!entry.isRead) database.setReadingListEntryRead(entry.id, true)
+                                onOpen(entry.url)
+                            },
+                            onToggleRead = {
+                                database.setReadingListEntryRead(entry.id, !entry.isRead)
+                                entries = database.getReadingList()
+                            },
                             onDelete = {
-                                database.removeBookmark(bookmark.url)
-                                bookmarks = bookmarks.filterNot { it.id == bookmark.id }
+                                database.removeFromReadingList(entry.url)
+                                entries = entries.filterNot { it.id == entry.id }
                             },
                         )
                         HorizontalDivider()
@@ -127,9 +103,10 @@ fun BookmarksScreen(
 }
 
 @Composable
-private fun BookmarkRow(
-    bookmark: Bookmark,
+private fun ReadingListRow(
+    entry: ReadingListEntry,
     onOpen: () -> Unit,
+    onToggleRead: () -> Unit,
     onDelete: () -> Unit,
 ) {
     Row(
@@ -139,12 +116,23 @@ private fun BookmarkRow(
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        IconButton(onClick = onToggleRead) {
+            Icon(
+                if (entry.isRead) Icons.Filled.CheckCircle else Icons.Filled.RadioButtonUnchecked,
+                contentDescription = if (entry.isRead) "Mark as unread" else "Mark as read",
+            )
+        }
         Column(modifier = Modifier.weight(1f)) {
-            Text(bookmark.title, style = MaterialTheme.typography.bodyLarge, maxLines = 1)
-            Text(bookmark.url, style = MaterialTheme.typography.bodySmall, maxLines = 1)
+            Text(
+                entry.title,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = if (entry.isRead) FontWeight.Normal else FontWeight.Bold,
+                maxLines = 1,
+            )
+            Text(entry.url, style = MaterialTheme.typography.bodySmall, maxLines = 1)
         }
         IconButton(onClick = onDelete) {
-            Icon(Icons.Filled.Delete, contentDescription = "Remove bookmark")
+            Icon(Icons.Filled.Delete, contentDescription = "Remove from reading list")
         }
     }
 }

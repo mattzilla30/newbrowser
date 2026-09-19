@@ -1,3 +1,3 @@
 package com.newbrowser.app.ui
 
-enum class Screen { Browser, Settings, Tabs, Bookmarks, History, Downloads, SitePermissions }
+enum class Screen { Browser, Settings, Tabs, Bookmarks, ReadingList, History, Downloads, SitePermissions }

@@ -2,6 +2,7 @@ package com.newbrowser.app.ui
 
 import android.webkit.CookieManager
 import android.webkit.WebStorage
+import android.webkit.WebView
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -26,9 +27,13 @@ fun NewBrowserApp(
     val preferences = remember { BrowserPreferences(context) }
     val appSettings = remember { BrowserSettings(preferences) }
     val database = remember { BrowserDatabase(context) }
-    val tabManager = remember { TabManager(database) { appSettings.homeUrl } }
+    val tabManager = remember { TabManager(database) }
 
     var screen by remember { mutableStateOf(Screen.Browser) }
+
+    LaunchedEffect(appSettings.remoteDebuggingEnabled) {
+        WebView.setWebContentsDebuggingEnabled(appSettings.remoteDebuggingEnabled)
+    }
 
     LaunchedEffect(pendingUrl) {
         if (pendingUrl != null) {
@@ -65,6 +70,15 @@ fun NewBrowserApp(
             )
 
             Screen.Bookmarks -> BookmarksScreen(
+                database = database,
+                onOpen = { url ->
+                    tabManager.onNavigate?.invoke(url)
+                    screen = Screen.Browser
+                },
+                onBack = { screen = Screen.Browser },
+            )
+
+            Screen.ReadingList -> ReadingListScreen(
                 database = database,
                 onOpen = { url ->
                     tabManager.onNavigate?.invoke(url)

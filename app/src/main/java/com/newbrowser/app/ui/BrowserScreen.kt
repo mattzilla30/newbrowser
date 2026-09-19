@@ -43,6 +43,7 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import androidx.webkit.WebSettingsCompat
 import androidx.webkit.WebViewFeature
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -52,8 +53,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -103,8 +108,10 @@ import com.newbrowser.app.MainActivity
 import com.newbrowser.app.R
 import com.newbrowser.app.data.BrowserDatabase
 import com.newbrowser.app.data.BrowserSettings
+import com.newbrowser.app.data.HistoryEntry
 import com.newbrowser.app.data.Suggestion
 import com.newbrowser.app.data.searchEngineFor
+import com.newbrowser.app.ui.tabs.NEW_TAB_URL
 import com.newbrowser.app.ui.tabs.TabManager
 import org.json.JSONObject
 import org.json.JSONTokener
@@ -240,6 +247,9 @@ fun BrowserScreen(
                 override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
                     super.onPageStarted(view, url, favicon)
                     val tab = tabManager.activeTab ?: return
+                    // A new-tab-page tab is parked on about:blank underneath the speed dial; that
+                    // load's own callbacks must not stomp the NEW_TAB_URL sentinel back to a real url.
+                    if (tab.url == NEW_TAB_URL && url == "about:blank") return
                     tab.isLoading = true
                     url?.let { tab.url = it }
                     tab.canGoBack = view?.canGoBack() ?: false
@@ -249,6 +259,7 @@ fun BrowserScreen(
                 override fun onPageFinished(view: WebView?, url: String?) {
                     super.onPageFinished(view, url)
                     val tab = tabManager.activeTab ?: return
+                    if (tab.url == NEW_TAB_URL && url == "about:blank") return
                     tab.isLoading = false
                     url?.let { tab.url = it }
                     tab.canGoBack = view?.canGoBack() ?: false
@@ -344,6 +355,7 @@ fun BrowserScreen(
                     decorView.addView(container)
                     fullscreenContainer = container
                     fullscreenCallback = callback
+                    PipController.isFullscreenVideoActive = true
                     WindowInsetsControllerCompat(activity.window, decorView).apply {
                         hide(WindowInsetsCompat.Type.systemBars())
                         systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
@@ -357,6 +369,7 @@ fun BrowserScreen(
                     fullscreenContainer = null
                     fullscreenCallback?.onCustomViewHidden()
                     fullscreenCallback = null
+                    PipController.isFullscreenVideoActive = false
                     WindowInsetsControllerCompat(activity.window, decorView).show(WindowInsetsCompat.Type.systemBars())
                 }
 
@@ -427,6 +440,18 @@ fun BrowserScreen(
             }
 
             setDownloadListener { url, userAgent, contentDisposition, mimeType, _ ->
+                if (mimeType == "application/pdf" || url.endsWith(".pdf", ignoreCase = true)) {
+                    val viewIntent = Intent(Intent.ACTION_VIEW).apply {
+                        setDataAndType(Uri.parse(url), "application/pdf")
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    try {
+                        context.startActivity(Intent.createChooser(viewIntent, null))
+                        return@setDownloadListener
+                    } catch (e: Exception) {
+                        // No app can open a remote PDF url directly; fall through to downloading it.
+                    }
+                }
                 val fileName = URLUtil.guessFileName(url, contentDisposition, mimeType)
                 val request = DownloadManager.Request(Uri.parse(url)).apply {
                     addRequestHeader("User-Agent", userAgent)
@@ -452,10 +477,14 @@ fun BrowserScreen(
                 settings.userAgentString = if (target.requestDesktopSite) DESKTOP_USER_AGENT else null
                 settings.cacheMode = if (target.isIncognito) WebSettings.LOAD_NO_CACHE else WebSettings.LOAD_DEFAULT
                 val state = target.savedState
-                if (state != null) restoreState(state) else loadUrl(target.url)
+                when {
+                    state != null -> restoreState(state)
+                    target.url == NEW_TAB_URL -> loadUrl("about:blank")
+                    else -> loadUrl(target.url)
+                }
             }
 
-            loadUrl(tabManager.activeTab!!.url)
+            if (tabManager.activeTab!!.url == NEW_TAB_URL) loadUrl("about:blank") else loadUrl(tabManager.activeTab!!.url)
         }
     }
 
@@ -590,7 +619,7 @@ fun BrowserScreen(
                 ) {
                     Box(modifier = Modifier.weight(1f)) {
                         OutlinedTextField(
-                            value = activeTab.url,
+                            value = if (activeTab.url == NEW_TAB_URL) "" else activeTab.url,
                             onValueChange = {
                                 activeTab.url = it
                                 suggestions = database.searchSuggestions(it)
@@ -686,12 +715,23 @@ fun BrowserScreen(
             }
         }
 
-        AndroidView(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth(),
-            factory = { swipeRefreshLayout },
-        )
+        if (activeTab.url == NEW_TAB_URL) {
+            NewTabPage(
+                topSites = if (activeTab.isIncognito) emptyList() else remember(activeTab.id) { database.getTopSites() },
+                onOpenSite = { navigateTo(it) },
+                onSearch = { navigateTo(it) },
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+            )
+        } else {
+            AndroidView(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+                factory = { swipeRefreshLayout },
+            )
+        }
 
         BackHandler(enabled = findBarVisible) {
             findBarVisible = false
@@ -755,6 +795,14 @@ fun BrowserScreen(
                         DropdownMenuItem(text = { Text("Bookmarks") }, onClick = {
                             menuExpanded = false
                             onNavigate(Screen.Bookmarks)
+                        })
+                        DropdownMenuItem(text = { Text("Save to Reading List") }, onClick = {
+                            menuExpanded = false
+                            database.addToReadingList(activeTab.url, activeTab.title.ifBlank { activeTab.url })
+                        })
+                        DropdownMenuItem(text = { Text("Reading List") }, onClick = {
+                            menuExpanded = false
+                            onNavigate(Screen.ReadingList)
                         })
                         DropdownMenuItem(text = { Text("History") }, onClick = {
                             menuExpanded = false
@@ -985,6 +1033,77 @@ fun BrowserScreen(
                     pendingGeoRequest = null
                 }) { Text("Deny") }
             },
+        )
+    }
+}
+
+@Composable
+private fun NewTabPage(
+    topSites: List<HistoryEntry>,
+    onOpenSite: (String) -> Unit,
+    onSearch: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var query by remember { mutableStateOf("") }
+
+    Column(modifier = modifier.padding(24.dp)) {
+        Text(
+            text = "New Tab",
+            style = MaterialTheme.typography.headlineSmall,
+            modifier = Modifier.padding(bottom = 16.dp),
+        )
+        OutlinedTextField(
+            value = query,
+            onValueChange = { query = it },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            placeholder = { Text("Search or enter address") },
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Go),
+            keyboardActions = KeyboardActions(onGo = { if (query.isNotBlank()) onSearch(query) }),
+        )
+
+        if (topSites.isNotEmpty()) {
+            Text(
+                text = "Top sites",
+                style = MaterialTheme.typography.labelLarge,
+                modifier = Modifier.padding(top = 24.dp, bottom = 8.dp),
+            )
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(3),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                items(topSites, key = { it.id }) { site ->
+                    TopSiteTile(site = site, onClick = { onOpenSite(site.url) })
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TopSiteTile(site: HistoryEntry, onClick: () -> Unit) {
+    val host = Uri.parse(site.url).host ?: site.url
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Surface(
+            modifier = Modifier.size(48.dp),
+            shape = MaterialTheme.shapes.medium,
+            color = MaterialTheme.colorScheme.secondaryContainer,
+        ) {
+            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                Text(text = host.take(1).uppercase(), style = MaterialTheme.typography.titleMedium)
+            }
+        }
+        Text(
+            text = host,
+            style = MaterialTheme.typography.bodySmall,
+            maxLines = 1,
+            modifier = Modifier.padding(top = 4.dp),
         )
     }
 }
