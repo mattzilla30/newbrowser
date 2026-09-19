@@ -9,6 +9,7 @@ import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
+import com.newbrowser.app.data.CYN_THEME_INDEX
 
 private val LightColors = lightColorScheme(
     primary = BrowserBlue,
@@ -20,14 +21,40 @@ private val DarkColors = darkColorScheme(
     secondary = BrowserTealDark,
 )
 
+/** The app's own default look: Cyn's magenta glow and worker-drone cyan on a near-black chassis. */
+private val CynColorScheme = darkColorScheme(
+    primary = CynPrimary,
+    onPrimary = CynOnPrimary,
+    primaryContainer = CynPrimaryContainer,
+    onPrimaryContainer = CynOnPrimaryContainer,
+    secondary = CynSecondary,
+    onSecondary = CynOnSecondary,
+    secondaryContainer = CynSecondaryContainer,
+    onSecondaryContainer = CynOnSecondaryContainer,
+    tertiary = CynTertiary,
+    onTertiary = CynOnTertiary,
+    tertiaryContainer = CynTertiaryContainer,
+    onTertiaryContainer = CynOnTertiaryContainer,
+    background = CynBackground,
+    onBackground = CynOnBackground,
+    surface = CynSurface,
+    onSurface = CynOnSurface,
+    surfaceVariant = CynSurfaceVariant,
+    onSurfaceVariant = CynOnSurfaceVariant,
+    outline = CynOutline,
+    error = CynError,
+    onError = CynOnError,
+)
+
 @Composable
 fun NewBrowserTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     dynamicColor: Boolean = true,
-    themeColorIndex: Int = -1,
+    themeColorIndex: Int = CYN_THEME_INDEX,
     content: @Composable () -> Unit,
 ) {
     val colorScheme = when {
+        themeColorIndex == CYN_THEME_INDEX -> CynColorScheme
         themeColorIndex in THEME_COLOR_PRESETS.indices -> {
             val seed = THEME_COLOR_PRESETS[themeColorIndex]
             if (darkTheme) darkColorScheme(primary = seed) else lightColorScheme(primary = seed)
@@ -42,6 +69,7 @@ fun NewBrowserTheme(
 
     MaterialTheme(
         colorScheme = colorScheme,
+        shapes = CynShapes,
         content = content,
     )
 }

@@ -2,8 +2,10 @@ package com.newbrowser.app
 
 import android.app.PictureInPictureParams
 import android.content.Intent
+import android.graphics.Color
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.getValue
@@ -11,6 +13,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.newbrowser.app.data.BrowserPreferences
 import com.newbrowser.app.data.BrowserSettings
+import com.newbrowser.app.data.CYN_THEME_INDEX
 import com.newbrowser.app.ui.NewBrowserApp
 import com.newbrowser.app.ui.PipController
 import com.newbrowser.app.ui.theme.NewBrowserTheme
@@ -20,11 +23,21 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
-        pendingUrl = intent?.dataString
         // Created here rather than inside NewBrowserApp so the theme wrapper - which has to sit
         // outside NewBrowserApp to color its own background - can read the chosen theme color too.
         val appSettings = BrowserSettings(BrowserPreferences(this))
+        // Cyn is always dark regardless of the system setting, so its status/nav bar icons need
+        // to be forced light too; every other theme choice still follows the system light/dark
+        // detection enableEdgeToEdge() does on its own.
+        if (appSettings.themeColorIndex == CYN_THEME_INDEX) {
+            enableEdgeToEdge(
+                statusBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
+                navigationBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
+            )
+        } else {
+            enableEdgeToEdge()
+        }
+        pendingUrl = intent?.dataString
         setContent {
             NewBrowserTheme(themeColorIndex = appSettings.themeColorIndex) {
                 NewBrowserApp(

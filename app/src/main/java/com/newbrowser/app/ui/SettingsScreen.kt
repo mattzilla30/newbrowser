@@ -41,12 +41,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.newbrowser.app.data.BrowserSettings
+import com.newbrowser.app.data.CYN_THEME_INDEX
 import com.newbrowser.app.data.SEARCH_ENGINES
+import com.newbrowser.app.data.SYSTEM_THEME_INDEX
 import com.newbrowser.app.data.searchEngineFor
+import com.newbrowser.app.ui.theme.CynPrimary
+import com.newbrowser.app.ui.theme.CynSecondary
 import com.newbrowser.app.ui.theme.THEME_COLOR_PRESETS
 
 @Composable
@@ -131,10 +136,14 @@ fun SettingsScreen(
                         .padding(bottom = 24.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
+                    CynColorSwatch(
+                        selected = appSettings.themeColorIndex == CYN_THEME_INDEX,
+                        onClick = { appSettings.updateThemeColorIndex(CYN_THEME_INDEX) },
+                    )
                     ColorSwatch(
                         color = null,
-                        selected = appSettings.themeColorIndex < 0,
-                        onClick = { appSettings.updateThemeColorIndex(-1) },
+                        selected = appSettings.themeColorIndex == SYSTEM_THEME_INDEX,
+                        onClick = { appSettings.updateThemeColorIndex(SYSTEM_THEME_INDEX) },
                     )
                     THEME_COLOR_PRESETS.forEachIndexed { index, color ->
                         ColorSwatch(
@@ -250,6 +259,32 @@ private fun SearchEngineRow(
                     },
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun CynColorSwatch(selected: Boolean, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .size(36.dp)
+            .clip(CircleShape)
+            .background(Brush.linearGradient(listOf(CynPrimary, CynSecondary)))
+            .border(
+                width = if (selected) 2.dp else 0.dp,
+                color = MaterialTheme.colorScheme.onSurface,
+                shape = CircleShape,
+            )
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (selected) {
+            Icon(
+                Icons.Filled.Check,
+                contentDescription = "Selected",
+                tint = Color.White,
+                modifier = Modifier.size(18.dp),
+            )
         }
     }
 }

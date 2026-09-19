@@ -15,6 +15,12 @@ private const val KEY_THEME_COLOR_INDEX = "theme_color_index"
 private const val DEFAULT_HOME_URL = "https://duckduckgo.com"
 private const val DEFAULT_SEARCH_ENGINE = "duckduckgo"
 
+/** Sentinel for [BrowserPreferences.themeColorIndex]: the app's own Cyn theme, not a preset. */
+const val CYN_THEME_INDEX = -2
+
+/** Sentinel for [BrowserPreferences.themeColorIndex]: follow the system/Material You color. */
+const val SYSTEM_THEME_INDEX = -1
+
 class BrowserPreferences(context: Context) {
     private val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
@@ -51,8 +57,8 @@ class BrowserPreferences(context: Context) {
         get() = prefs.getInt(KEY_PAGE_TEXT_ZOOM, 100)
         set(value) = prefs.edit().putInt(KEY_PAGE_TEXT_ZOOM, value).apply()
 
-    /** Index into a preset palette, or -1 to follow the system/Material You color. */
+    /** Index into a preset palette, or one of the sentinels above. Defaults to the Cyn theme. */
     var themeColorIndex: Int
-        get() = prefs.getInt(KEY_THEME_COLOR_INDEX, -1)
+        get() = prefs.getInt(KEY_THEME_COLOR_INDEX, CYN_THEME_INDEX)
         set(value) = prefs.edit().putInt(KEY_THEME_COLOR_INDEX, value).apply()
 }
