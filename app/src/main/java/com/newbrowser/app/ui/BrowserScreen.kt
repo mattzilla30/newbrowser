@@ -43,6 +43,7 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import androidx.webkit.WebSettingsCompat
 import androidx.webkit.WebViewFeature
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -98,6 +99,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
@@ -203,6 +205,7 @@ fun BrowserScreen(
                 ViewGroup.LayoutParams.MATCH_PARENT,
             )
             settings.javaScriptEnabled = appSettings.javaScriptEnabled
+            settings.textZoom = appSettings.pageTextZoom
             settings.domStorageEnabled = true
             settings.loadWithOverviewMode = true
             settings.useWideViewPort = true
@@ -251,6 +254,7 @@ fun BrowserScreen(
                     // load's own callbacks must not stomp the NEW_TAB_URL sentinel back to a real url.
                     if (tab.url == NEW_TAB_URL && url == "about:blank") return
                     tab.isLoading = true
+                    tab.favicon = favicon
                     url?.let { tab.url = it }
                     tab.canGoBack = view?.canGoBack() ?: false
                     tab.canGoForward = view?.canGoForward() ?: false
@@ -301,6 +305,11 @@ fun BrowserScreen(
                         tab.title = title
                         if (!tab.isIncognito) tabManager.persistTabs()
                     }
+                }
+
+                override fun onReceivedIcon(view: WebView?, icon: Bitmap?) {
+                    super.onReceivedIcon(view, icon)
+                    tabManager.activeTab?.favicon = icon
                 }
 
                 override fun onJsAlert(view: WebView?, url: String?, message: String?, result: JsResult): Boolean {
@@ -518,6 +527,10 @@ fun BrowserScreen(
         webView.settings.javaScriptEnabled = appSettings.javaScriptEnabled
     }
 
+    LaunchedEffect(appSettings.pageTextZoom) {
+        webView.settings.textZoom = appSettings.pageTextZoom
+    }
+
     LaunchedEffect(appSettings.darkModeForPages) {
         if (WebViewFeature.isFeatureSupported(WebViewFeature.ALGORITHMIC_DARKENING)) {
             WebSettingsCompat.setAlgorithmicDarkeningAllowed(webView.settings, appSettings.darkModeForPages)
@@ -630,6 +643,13 @@ fun BrowserScreen(
                                 .onFocusChanged { isAddressFocused = it.isFocused },
                             singleLine = true,
                             placeholder = { Text("Search or enter address") },
+                            leadingIcon = if (activeTab.url != NEW_TAB_URL) {
+                                activeTab.favicon?.let { fav ->
+                                    { Image(bitmap = fav.asImageBitmap(), contentDescription = null, modifier = Modifier.size(20.dp)) }
+                                }
+                            } else {
+                                null
+                            },
                             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Go),
                             keyboardActions = KeyboardActions(onGo = { navigateTo(activeTab.url) }),
                         )

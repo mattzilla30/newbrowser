@@ -27,6 +27,9 @@ class TabManager(
 ) {
     val tabs = mutableStateListOf<BrowserTab>()
 
+    /** Non-incognito tabs closed recently, most recent first, for a "reopen" action. */
+    val recentlyClosed = mutableStateListOf<PersistedTab>()
+
     var activeTabId by mutableStateOf<Long?>(null)
         private set
 
@@ -88,6 +91,7 @@ class TabManager(
         val index = tabs.indexOf(tab)
         if (index == -1) return
         val wasActive = activeTabId == tab.id
+        recordClosed(tab)
         tabs.removeAt(index)
 
         if (tabs.isEmpty()) {
@@ -106,6 +110,7 @@ class TabManager(
     /** Closes every tab except [keep], leaving the tab list with just that one active tab. */
     fun closeOtherTabs(keep: BrowserTab) {
         val previous = activeTab
+        tabs.filterNot { it.id == keep.id }.forEach { recordClosed(it) }
         tabs.retainAll { it.id == keep.id }
         if (activeTabId != keep.id) {
             activeTabId = keep.id
@@ -116,8 +121,21 @@ class TabManager(
 
     /** Closes every tab and replaces them with a single fresh new-tab page. */
     fun closeAllTabs() {
+        tabs.forEach { recordClosed(it) }
         tabs.clear()
         newTab()
+    }
+
+    /** Reopens a recently-closed tab and drops it from the list. */
+    fun reopenRecentlyClosed(entry: PersistedTab) {
+        recentlyClosed.remove(entry)
+        newTab(url = entry.url)
+    }
+
+    private fun recordClosed(tab: BrowserTab) {
+        if (tab.isIncognito || tab.url == NEW_TAB_URL) return
+        recentlyClosed.add(0, PersistedTab(tab.url, tab.title, false))
+        while (recentlyClosed.size > 10) recentlyClosed.removeAt(recentlyClosed.size - 1)
     }
 
     fun createGroup(members: List<BrowserTab>, name: String, colorIndex: Int) {

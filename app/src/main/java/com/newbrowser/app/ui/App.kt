@@ -14,18 +14,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import com.newbrowser.app.data.BrowserDatabase
-import com.newbrowser.app.data.BrowserPreferences
 import com.newbrowser.app.data.BrowserSettings
 import com.newbrowser.app.ui.tabs.TabManager
 
 @Composable
 fun NewBrowserApp(
+    appSettings: BrowserSettings,
     pendingUrl: String? = null,
     onPendingUrlConsumed: () -> Unit = {},
 ) {
     val context = LocalContext.current
-    val preferences = remember { BrowserPreferences(context) }
-    val appSettings = remember { BrowserSettings(preferences) }
     val database = remember { BrowserDatabase(context) }
     val tabManager = remember { TabManager(database) }
 

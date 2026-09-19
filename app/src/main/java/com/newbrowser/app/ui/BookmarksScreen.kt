@@ -19,6 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FileOpen
+import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -41,6 +42,23 @@ private val BOOKMARK_HTML_ENTRY_RE = Regex(
     """<A[^>]*HREF="([^"]+)"[^>]*>([^<]*)</A>""",
     RegexOption.IGNORE_CASE,
 )
+
+/** Netscape bookmark file format: what Chrome and Firefox both import and export. */
+private fun buildBookmarksHtml(bookmarks: List<Bookmark>): String {
+    val entries = bookmarks.joinToString("\n") { bookmark ->
+        val addDate = bookmark.createdAt / 1000
+        "    <DT><A HREF=\"${bookmark.url}\" ADD_DATE=\"$addDate\">${bookmark.title}</A>"
+    }
+    return """
+        <!DOCTYPE NETSCAPE-Bookmark-file-1>
+        <META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=UTF-8">
+        <TITLE>Bookmarks</TITLE>
+        <H1>Bookmarks</H1>
+        <DL><p>
+        $entries
+        </DL><p>
+    """.trimIndent()
+}
 
 @Composable
 fun BookmarksScreen(
@@ -71,6 +89,19 @@ fun BookmarksScreen(
         }
     }
 
+    val exportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("text/html"),
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        try {
+            context.contentResolver.openOutputStream(uri)?.bufferedWriter()?.use {
+                it.write(buildBookmarksHtml(bookmarks))
+            }
+        } catch (e: Exception) {
+            // Nothing to recover into; the picker already reported success to the user.
+        }
+    }
+
     Surface(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
@@ -93,6 +124,9 @@ fun BookmarksScreen(
                         .weight(1f)
                         .padding(start = 8.dp),
                 )
+                IconButton(onClick = { exportLauncher.launch("bookmarks.html") }) {
+                    Icon(Icons.Filled.Save, contentDescription = "Export bookmarks")
+                }
                 IconButton(onClick = { importLauncher.launch("text/html") }) {
                     Icon(Icons.Filled.FileOpen, contentDescription = "Import bookmarks")
                 }

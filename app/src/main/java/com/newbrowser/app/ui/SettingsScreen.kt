@@ -1,6 +1,8 @@
 package com.newbrowser.app.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -11,11 +13,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -27,6 +32,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -34,11 +40,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.newbrowser.app.data.BrowserSettings
 import com.newbrowser.app.data.SEARCH_ENGINES
 import com.newbrowser.app.data.searchEngineFor
+import com.newbrowser.app.ui.theme.THEME_COLOR_PRESETS
 
 @Composable
 fun SettingsScreen(
@@ -109,6 +118,50 @@ fun SettingsScreen(
                     modifier = Modifier.padding(top = 24.dp, bottom = 8.dp),
                 ) {
                     Text("Clear browsing data")
+                }
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
+
+                SectionHeader("Appearance")
+
+                Text("Theme color", modifier = Modifier.padding(bottom = 8.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 24.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    ColorSwatch(
+                        color = null,
+                        selected = appSettings.themeColorIndex < 0,
+                        onClick = { appSettings.updateThemeColorIndex(-1) },
+                    )
+                    THEME_COLOR_PRESETS.forEachIndexed { index, color ->
+                        ColorSwatch(
+                            color = color,
+                            selected = appSettings.themeColorIndex == index,
+                            onClick = { appSettings.updateThemeColorIndex(index) },
+                        )
+                    }
+                }
+
+                Text("Page text size", modifier = Modifier.padding(bottom = 8.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 24.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    listOf(75, 100, 125, 150, 200).forEach { percent ->
+                        val selected = appSettings.pageTextZoom == percent
+                        if (selected) {
+                            Button(onClick = {}) { Text("$percent%") }
+                        } else {
+                            TextButton(onClick = { appSettings.updatePageTextZoom(percent) }) {
+                                Text("$percent%")
+                            }
+                        }
+                    }
                 }
 
                 HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
@@ -197,6 +250,32 @@ private fun SearchEngineRow(
                     },
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun ColorSwatch(color: Color?, selected: Boolean, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .size(36.dp)
+            .clip(CircleShape)
+            .background(color ?: MaterialTheme.colorScheme.surfaceVariant)
+            .border(
+                width = if (selected) 2.dp else 0.dp,
+                color = MaterialTheme.colorScheme.onSurface,
+                shape = CircleShape,
+            )
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (selected) {
+            Icon(
+                Icons.Filled.Check,
+                contentDescription = "Selected",
+                tint = if (color != null) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(18.dp),
+            )
         }
     }
 }

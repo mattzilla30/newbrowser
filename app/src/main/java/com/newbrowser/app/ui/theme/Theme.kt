@@ -24,9 +24,14 @@ private val DarkColors = darkColorScheme(
 fun NewBrowserTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     dynamicColor: Boolean = true,
+    themeColorIndex: Int = -1,
     content: @Composable () -> Unit,
 ) {
     val colorScheme = when {
+        themeColorIndex in THEME_COLOR_PRESETS.indices -> {
+            val seed = THEME_COLOR_PRESETS[themeColorIndex]
+            if (darkTheme) darkColorScheme(primary = seed) else lightColorScheme(primary = seed)
+        }
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             val context = LocalContext.current
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)

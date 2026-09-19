@@ -10,6 +10,8 @@ private const val KEY_DARK_MODE_FOR_PAGES = "dark_mode_for_pages"
 private const val KEY_BLOCK_POPUPS = "block_popups"
 private const val KEY_DO_NOT_TRACK = "do_not_track"
 private const val KEY_REMOTE_DEBUGGING_ENABLED = "remote_debugging_enabled"
+private const val KEY_PAGE_TEXT_ZOOM = "page_text_zoom"
+private const val KEY_THEME_COLOR_INDEX = "theme_color_index"
 private const val DEFAULT_HOME_URL = "https://duckduckgo.com"
 private const val DEFAULT_SEARCH_ENGINE = "duckduckgo"
 
@@ -43,4 +45,14 @@ class BrowserPreferences(context: Context) {
     var remoteDebuggingEnabled: Boolean
         get() = prefs.getBoolean(KEY_REMOTE_DEBUGGING_ENABLED, false)
         set(value) = prefs.edit().putBoolean(KEY_REMOTE_DEBUGGING_ENABLED, value).apply()
+
+    /** WebView's textZoom percentage; 100 is normal size. */
+    var pageTextZoom: Int
+        get() = prefs.getInt(KEY_PAGE_TEXT_ZOOM, 100)
+        set(value) = prefs.edit().putInt(KEY_PAGE_TEXT_ZOOM, value).apply()
+
+    /** Index into a preset palette, or -1 to follow the system/Material You color. */
+    var themeColorIndex: Int
+        get() = prefs.getInt(KEY_THEME_COLOR_INDEX, -1)
+        set(value) = prefs.edit().putInt(KEY_THEME_COLOR_INDEX, value).apply()
 }

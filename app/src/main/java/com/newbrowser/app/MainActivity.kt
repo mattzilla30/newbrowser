@@ -9,6 +9,8 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import com.newbrowser.app.data.BrowserPreferences
+import com.newbrowser.app.data.BrowserSettings
 import com.newbrowser.app.ui.NewBrowserApp
 import com.newbrowser.app.ui.PipController
 import com.newbrowser.app.ui.theme.NewBrowserTheme
@@ -20,9 +22,13 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         pendingUrl = intent?.dataString
+        // Created here rather than inside NewBrowserApp so the theme wrapper - which has to sit
+        // outside NewBrowserApp to color its own background - can read the chosen theme color too.
+        val appSettings = BrowserSettings(BrowserPreferences(this))
         setContent {
-            NewBrowserTheme {
+            NewBrowserTheme(themeColorIndex = appSettings.themeColorIndex) {
                 NewBrowserApp(
+                    appSettings = appSettings,
                     pendingUrl = pendingUrl,
                     onPendingUrlConsumed = { pendingUrl = null },
                 )

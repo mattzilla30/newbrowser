@@ -1,6 +1,7 @@
 package com.newbrowser.app.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -41,8 +42,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.newbrowser.app.data.PersistedTab
 import com.newbrowser.app.ui.tabs.BrowserTab
 import com.newbrowser.app.ui.tabs.TabGroup
 import com.newbrowser.app.ui.tabs.TabManager
@@ -68,6 +71,7 @@ fun TabSwitcherScreen(
     var searchQuery by remember { mutableStateOf("") }
     var overflowExpanded by remember { mutableStateOf(false) }
     var groupDialogTab by remember { mutableStateOf<BrowserTab?>(null) }
+    var recentlyClosedDialogVisible by remember { mutableStateOf(false) }
 
     val filteredTabs = tabManager.tabs.filter { tab ->
         searchQuery.isBlank() ||
@@ -122,6 +126,14 @@ fun TabSwitcherScreen(
                             overflowExpanded = false
                             tabManager.closeAllTabs()
                         })
+                        DropdownMenuItem(
+                            text = { Text("Recently closed (${tabManager.recentlyClosed.size})") },
+                            enabled = tabManager.recentlyClosed.isNotEmpty(),
+                            onClick = {
+                                overflowExpanded = false
+                                recentlyClosedDialogVisible = true
+                            },
+                        )
                     }
                 }
             }
@@ -195,6 +207,48 @@ fun TabSwitcherScreen(
             onDismiss = { groupDialogTab = null },
         )
     }
+
+    if (recentlyClosedDialogVisible) {
+        RecentlyClosedDialog(
+            entries = tabManager.recentlyClosed,
+            onReopen = { entry ->
+                tabManager.reopenRecentlyClosed(entry)
+                recentlyClosedDialogVisible = false
+                onBack()
+            },
+            onDismiss = { recentlyClosedDialogVisible = false },
+        )
+    }
+}
+
+@Composable
+private fun RecentlyClosedDialog(
+    entries: List<PersistedTab>,
+    onReopen: (PersistedTab) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Recently closed") },
+        text = {
+            Column {
+                entries.forEach { entry ->
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onReopen(entry) }
+                            .padding(vertical = 8.dp),
+                    ) {
+                        Text(entry.title, maxLines = 1, style = MaterialTheme.typography.bodyLarge)
+                        Text(entry.url, maxLines = 1, style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("Close") }
+        },
+    )
 }
 
 @Composable
@@ -245,6 +299,15 @@ private fun TabRow(
                     .background(GROUP_COLORS[group.colorIndex % GROUP_COLORS.size], CircleShape),
             )
             Box(modifier = Modifier.size(8.dp))
+        }
+        tab.favicon?.let { fav ->
+            Image(
+                bitmap = fav.asImageBitmap(),
+                contentDescription = null,
+                modifier = Modifier
+                    .size(20.dp)
+                    .padding(end = 8.dp),
+            )
         }
         Column(modifier = Modifier.weight(1f)) {
             Text(

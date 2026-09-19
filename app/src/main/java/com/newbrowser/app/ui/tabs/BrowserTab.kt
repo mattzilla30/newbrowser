@@ -1,5 +1,6 @@
 package com.newbrowser.app.ui.tabs
 
+import android.graphics.Bitmap
 import android.os.Bundle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -25,5 +26,6 @@ class BrowserTab(
     var groupId by mutableStateOf<String?>(null)
     var groupName by mutableStateOf<String?>(null)
     var groupColorIndex by mutableStateOf(0)
+    var favicon by mutableStateOf<Bitmap?>(null)
     var savedState: Bundle? = null
 }

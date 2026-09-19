@@ -33,6 +33,12 @@ class BrowserSettings(private val preferences: BrowserPreferences) {
     var remoteDebuggingEnabled by mutableStateOf(preferences.remoteDebuggingEnabled)
         private set
 
+    var pageTextZoom by mutableStateOf(preferences.pageTextZoom)
+        private set
+
+    var themeColorIndex by mutableStateOf(preferences.themeColorIndex)
+        private set
+
     fun updateHomeUrl(value: String) {
         homeUrl = value
         preferences.homeUrl = value
@@ -66,5 +72,15 @@ class BrowserSettings(private val preferences: BrowserPreferences) {
     fun updateRemoteDebuggingEnabled(value: Boolean) {
         remoteDebuggingEnabled = value
         preferences.remoteDebuggingEnabled = value
+    }
+
+    fun updatePageTextZoom(value: Int) {
+        pageTextZoom = value
+        preferences.pageTextZoom = value
+    }
+
+    fun updateThemeColorIndex(value: Int) {
+        themeColorIndex = value
+        preferences.themeColorIndex = value
     }
 }
