@@ -12,7 +12,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import com.newbrowser.app.data.AdBlocker
 import com.newbrowser.app.data.BrowserDatabase
 import com.newbrowser.app.data.BrowserPreferences
 import com.newbrowser.app.data.BrowserSettings
@@ -24,7 +23,6 @@ fun NewBrowserApp(
     onPendingUrlConsumed: () -> Unit = {},
 ) {
     val context = LocalContext.current
-    remember { AdBlocker.init(context) }
     val preferences = remember { BrowserPreferences(context) }
     val appSettings = remember { BrowserSettings(preferences) }
     val database = remember { BrowserDatabase(context) }

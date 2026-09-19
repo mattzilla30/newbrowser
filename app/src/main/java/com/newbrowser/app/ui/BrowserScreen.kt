@@ -28,7 +28,6 @@ import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
 import android.webkit.WebSettings
 import android.webkit.WebResourceRequest
-import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.FrameLayout
@@ -102,7 +101,6 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.PopupProperties
 import com.newbrowser.app.MainActivity
 import com.newbrowser.app.R
-import com.newbrowser.app.data.AdBlocker
 import com.newbrowser.app.data.BrowserDatabase
 import com.newbrowser.app.data.BrowserSettings
 import com.newbrowser.app.data.Suggestion
@@ -110,7 +108,6 @@ import com.newbrowser.app.data.searchEngineFor
 import com.newbrowser.app.ui.tabs.TabManager
 import org.json.JSONObject
 import org.json.JSONTokener
-import java.io.ByteArrayInputStream
 import java.net.URLEncoder
 
 private const val DESKTOP_USER_AGENT =
@@ -244,7 +241,6 @@ fun BrowserScreen(
                     super.onPageStarted(view, url, favicon)
                     val tab = tabManager.activeTab ?: return
                     tab.isLoading = true
-                    tab.blockedOnPage = 0
                     url?.let { tab.url = it }
                     tab.canGoBack = view?.canGoBack() ?: false
                     tab.canGoForward = view?.canGoForward() ?: false
@@ -257,29 +253,11 @@ fun BrowserScreen(
                     url?.let { tab.url = it }
                     tab.canGoBack = view?.canGoBack() ?: false
                     tab.canGoForward = view?.canGoForward() ?: false
-                    if (tab.blockedOnPage > 0) {
-                        appSettings.addBlockedCount(tab.blockedOnPage)
-                    }
                     if (!tab.isIncognito && url != null) {
                         database.addHistoryEntry(url, tab.title.ifBlank { url })
                         tabManager.persistTabs()
                     }
                     lastDntReissuedUrl = null
-                }
-
-                override fun shouldInterceptRequest(
-                    view: WebView?,
-                    request: WebResourceRequest?,
-                ): WebResourceResponse? {
-                    if (request != null &&
-                        !request.isForMainFrame &&
-                        appSettings.adBlockEnabled &&
-                        AdBlocker.isBlockedHost(request.url.host)
-                    ) {
-                        tabManager.activeTab?.let { it.blockedOnPage++ }
-                        return WebResourceResponse("text/plain", "UTF-8", ByteArrayInputStream(ByteArray(0)))
-                    }
-                    return super.shouldInterceptRequest(view, request)
                 }
 
                 override fun onReceivedError(
@@ -824,13 +802,7 @@ fun BrowserScreen(
                     }
                 }
                 IconButton(onClick = { onNavigate(Screen.Settings) }) {
-                    BadgedBox(badge = {
-                        if (appSettings.adBlockEnabled && activeTab.blockedOnPage > 0) {
-                            Badge { Text(activeTab.blockedOnPage.toString()) }
-                        }
-                    }) {
-                        Icon(Icons.Filled.Settings, contentDescription = "Settings")
-                    }
+                    Icon(Icons.Filled.Settings, contentDescription = "Settings")
                 }
             }
         }

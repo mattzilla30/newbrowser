@@ -18,12 +18,6 @@ class BrowserSettings(private val preferences: BrowserPreferences) {
     var javaScriptEnabled by mutableStateOf(preferences.javaScriptEnabled)
         private set
 
-    var adBlockEnabled by mutableStateOf(preferences.adBlockEnabled)
-        private set
-
-    var totalBlockedCount by mutableStateOf(preferences.totalBlockedCount)
-        private set
-
     var searchEngineKey by mutableStateOf(preferences.searchEngineKey)
         private set
 
@@ -44,17 +38,6 @@ class BrowserSettings(private val preferences: BrowserPreferences) {
     fun updateJavaScriptEnabled(value: Boolean) {
         javaScriptEnabled = value
         preferences.javaScriptEnabled = value
-    }
-
-    fun updateAdBlockEnabled(value: Boolean) {
-        adBlockEnabled = value
-        preferences.adBlockEnabled = value
-    }
-
-    fun addBlockedCount(delta: Int) {
-        if (delta <= 0) return
-        totalBlockedCount += delta
-        preferences.totalBlockedCount = totalBlockedCount
     }
 
     fun updateSearchEngineKey(value: String) {

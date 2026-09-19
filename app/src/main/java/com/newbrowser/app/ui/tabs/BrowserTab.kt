@@ -2,7 +2,6 @@ package com.newbrowser.app.ui.tabs
 
 import android.os.Bundle
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 
@@ -22,7 +21,6 @@ class BrowserTab(
     var isLoading by mutableStateOf(false)
     var canGoBack by mutableStateOf(false)
     var canGoForward by mutableStateOf(false)
-    var blockedOnPage by mutableIntStateOf(0)
     var requestDesktopSite by mutableStateOf(false)
     var savedState: Bundle? = null
 }
