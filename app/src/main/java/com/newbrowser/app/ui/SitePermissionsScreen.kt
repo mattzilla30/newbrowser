@@ -88,16 +88,10 @@ fun SitePermissionsScreen(
                     modifier = Modifier.padding(start = 8.dp),
                 )
             }
+            CynAccentLine()
 
             if (permissions.isEmpty() && siteData.isEmpty()) {
-                Box(modifier = Modifier.fillMaxSize()) {
-                    Text(
-                        text = "No sites have been granted or denied access, or stored data, yet.",
-                        modifier = Modifier
-                            .align(Alignment.Center)
-                            .padding(32.dp),
-                    )
-                }
+                CynEmptyState("No sites have been granted or denied access, or stored data, yet.")
             } else {
                 LazyColumn(modifier = Modifier.fillMaxSize()) {
                     if (permissions.isNotEmpty()) {

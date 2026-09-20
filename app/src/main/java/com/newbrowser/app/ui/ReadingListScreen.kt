@@ -66,16 +66,10 @@ fun ReadingListScreen(
                     modifier = Modifier.padding(start = 8.dp),
                 )
             }
+            CynAccentLine()
 
             if (entries.isEmpty()) {
-                Box(modifier = Modifier.fillMaxSize()) {
-                    Text(
-                        text = "Nothing saved yet. Use \"Save to Reading List\" from a page's menu.",
-                        modifier = Modifier
-                            .align(Alignment.Center)
-                            .padding(32.dp),
-                    )
-                }
+                CynEmptyState("Nothing saved yet. Use \"Save to Reading List\" from a page's menu.")
             } else {
                 LazyColumn(modifier = Modifier.fillMaxSize()) {
                     items(entries, key = { it.id }) { entry ->

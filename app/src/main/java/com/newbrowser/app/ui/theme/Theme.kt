@@ -70,6 +70,7 @@ fun NewBrowserTheme(
     MaterialTheme(
         colorScheme = colorScheme,
         shapes = CynShapes,
+        typography = CynTypography,
         content = content,
     )
 }

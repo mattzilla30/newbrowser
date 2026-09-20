@@ -83,6 +83,7 @@ fun SettingsScreen(
                     modifier = Modifier.padding(start = 8.dp),
                 )
             }
+            CynAccentLine()
 
             Column(
                 modifier = Modifier

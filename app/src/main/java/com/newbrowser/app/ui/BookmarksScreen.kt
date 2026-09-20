@@ -141,6 +141,7 @@ fun BookmarksScreen(
                     Icon(Icons.Filled.FileOpen, contentDescription = "Import bookmarks")
                 }
             }
+            CynAccentLine()
 
             OutlinedTextField(
                 value = query,
@@ -153,14 +154,7 @@ fun BookmarksScreen(
             )
 
             if (filtered.isEmpty()) {
-                Box(modifier = Modifier.fillMaxSize()) {
-                    Text(
-                        text = if (bookmarks.isEmpty()) "No bookmarks yet" else "No matches",
-                        modifier = Modifier
-                            .align(Alignment.Center)
-                            .padding(16.dp),
-                    )
-                }
+                CynEmptyState(if (bookmarks.isEmpty()) "No bookmarks yet" else "No matches")
             } else {
                 LazyColumn(modifier = Modifier.fillMaxSize()) {
                     items(filtered, key = { it.id }) { bookmark ->

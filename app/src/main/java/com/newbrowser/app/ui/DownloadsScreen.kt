@@ -74,16 +74,10 @@ fun DownloadsScreen(
                     modifier = Modifier.padding(start = 8.dp),
                 )
             }
+            CynAccentLine()
 
             if (downloads.isEmpty() && savedPages.isEmpty()) {
-                Box(modifier = Modifier.fillMaxSize()) {
-                    Text(
-                        text = "No downloads yet",
-                        modifier = Modifier
-                            .align(Alignment.Center)
-                            .padding(16.dp),
-                    )
-                }
+                CynEmptyState("No downloads yet")
             } else {
                 LazyColumn(modifier = Modifier.fillMaxSize()) {
                     if (savedPages.isNotEmpty()) {

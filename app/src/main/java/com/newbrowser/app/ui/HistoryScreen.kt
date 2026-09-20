@@ -81,6 +81,7 @@ fun HistoryScreen(
                     Icon(Icons.Filled.Delete, contentDescription = "Clear history")
                 }
             }
+            CynAccentLine()
 
             OutlinedTextField(
                 value = query,
@@ -93,14 +94,7 @@ fun HistoryScreen(
             )
 
             if (filtered.isEmpty()) {
-                Box(modifier = Modifier.fillMaxSize()) {
-                    Text(
-                        text = if (history.isEmpty()) "No history yet" else "No matches",
-                        modifier = Modifier
-                            .align(Alignment.Center)
-                            .padding(16.dp),
-                    )
-                }
+                CynEmptyState(if (history.isEmpty()) "No history yet" else "No matches")
             } else {
                 LazyColumn(modifier = Modifier.fillMaxSize()) {
                     items(filtered, key = { it.id }) { entry ->

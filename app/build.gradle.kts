@@ -12,8 +12,8 @@ android {
         applicationId = "com.newbrowser.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 10
-        versionName = "1.9"
+        versionCode = 11
+        versionName = "2.0"
     }
 
     signingConfigs {
@@ -56,6 +56,7 @@ dependencies {
     implementation(libs.activity.compose)
     implementation(libs.webkit)
     implementation(libs.swiperefreshlayout)
+    implementation(libs.splashscreen)
 
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.ui)

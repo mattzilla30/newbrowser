@@ -137,6 +137,7 @@ fun TabSwitcherScreen(
                     }
                 }
             }
+            CynAccentLine()
 
             if (searchVisible) {
                 OutlinedTextField(

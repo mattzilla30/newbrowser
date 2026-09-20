@@ -12,4 +12,16 @@
         <item name="android:statusBarColor">@color/window_background</item>
         <item name="android:navigationBarColor">@color/window_background</item>
     </style>
+
+    <!--
+        The activity's actual theme at launch; installSplashScreen() in MainActivity swaps it
+        for Theme.NewBrowser once the first frame is ready. windowSplashScreenAnimatedIcon is
+        the CYN wordmark tinted magenta (the source PNG is a dark, near-invisible grey that
+        would disappear against this near-black background otherwise).
+    -->
+    <style name="Theme.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/window_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash_icon</item>
+        <item name="postSplashScreenTheme">@style/Theme.NewBrowser</item>
+    </style>
 </resources>

@@ -70,6 +70,7 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
@@ -111,10 +112,14 @@ import com.newbrowser.app.R
 import com.newbrowser.app.data.BrowserDatabase
 import com.newbrowser.app.data.BrowserSettings
 import com.newbrowser.app.data.HistoryEntry
+import com.newbrowser.app.data.SearchSuggestionFetcher
 import com.newbrowser.app.data.Suggestion
 import com.newbrowser.app.data.searchEngineFor
 import com.newbrowser.app.ui.tabs.NEW_TAB_URL
 import com.newbrowser.app.ui.tabs.TabManager
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import org.json.JSONTokener
 import java.io.File
@@ -138,6 +143,7 @@ fun BrowserScreen(
 
     var isAddressFocused by remember { mutableStateOf(false) }
     var suggestions by remember { mutableStateOf<List<Suggestion>>(emptyList()) }
+    var remoteSuggestions by remember { mutableStateOf<List<String>>(emptyList()) }
     var menuExpanded by remember { mutableStateOf(false) }
 
     var findBarVisible by remember { mutableStateOf(false) }
@@ -544,6 +550,15 @@ fun BrowserScreen(
         findTotal = 0
     }
 
+    LaunchedEffect(activeTab.url, isAddressFocused) {
+        if (!isAddressFocused || activeTab.url.length < 2 || activeTab.url == NEW_TAB_URL) {
+            remoteSuggestions = emptyList()
+            return@LaunchedEffect
+        }
+        delay(250)
+        remoteSuggestions = withContext(Dispatchers.IO) { SearchSuggestionFetcher.fetch(activeTab.url) }
+    }
+
     fun navigateTo(input: String) {
         val target = normalizeUrl(input, appSettings.homeUrl, appSettings.searchEngineKey)
         activeTab.url = target
@@ -672,8 +687,11 @@ fun BrowserScreen(
                         )
 
                         DropdownMenu(
-                            expanded = isAddressFocused && suggestions.isNotEmpty(),
-                            onDismissRequest = { suggestions = emptyList() },
+                            expanded = isAddressFocused && (suggestions.isNotEmpty() || remoteSuggestions.isNotEmpty()),
+                            onDismissRequest = {
+                                suggestions = emptyList()
+                                remoteSuggestions = emptyList()
+                            },
                             properties = PopupProperties(focusable = false),
                         ) {
                             suggestions.forEach { suggestion ->
@@ -689,6 +707,13 @@ fun BrowserScreen(
                                         }
                                     },
                                     onClick = { navigateTo(suggestion.url) },
+                                )
+                            }
+                            remoteSuggestions.forEach { phrase ->
+                                DropdownMenuItem(
+                                    leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+                                    text = { Text(phrase, maxLines = 1) },
+                                    onClick = { navigateTo(phrase) },
                                 )
                             }
                         }
@@ -751,6 +776,7 @@ fun BrowserScreen(
                 }
             }
         }
+        CynAccentLine()
 
         if (activeTab.url == NEW_TAB_URL) {
             NewTabPage(
