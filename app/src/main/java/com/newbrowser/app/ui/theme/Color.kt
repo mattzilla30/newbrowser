@@ -17,27 +17,28 @@ val THEME_COLOR_PRESETS = listOf(
     Color(0xFF00897B), // teal
 )
 
-// Cyn (Murder Drones): near-black chassis, her corruption-magenta glow as the primary accent,
-// worker-drone cyan as the secondary. Deliberately one scheme regardless of light/dark - the
-// character's whole aesthetic is a dark one, and a "light Cyn" isn't really Cyn.
-val CynPrimary = Color(0xFFFF2E9A)
-val CynOnPrimary = Color(0xFFFFE9F5)
-val CynPrimaryContainer = Color(0xFF6B0B44)
-val CynOnPrimaryContainer = Color(0xFFFFD1E8)
-val CynSecondary = Color(0xFF00E5FF)
-val CynOnSecondary = Color(0xFF00272B)
-val CynSecondaryContainer = Color(0xFF00505C)
-val CynOnSecondaryContainer = Color(0xFFB6F5FF)
-val CynTertiary = Color(0xFF9B5CFF)
-val CynOnTertiary = Color(0xFFF0E5FF)
-val CynTertiaryContainer = Color(0xFF4A2589)
-val CynOnTertiaryContainer = Color(0xFFE3D1FF)
-val CynBackground = Color(0xFF0A0A0F)
-val CynOnBackground = Color(0xFFEDE7F0)
-val CynSurface = Color(0xFF121017)
-val CynOnSurface = Color(0xFFEDE7F0)
-val CynSurfaceVariant = Color(0xFF1E1A24)
-val CynOnSurfaceVariant = Color(0xFFCBBFD6)
-val CynOutline = Color(0xFF554B5E)
-val CynError = Color(0xFFFF5470)
-val CynOnError = Color(0xFFFFEAEA)
+// Cyn (Murder Drones): black clothing and hair on a near-black background, her glowing
+// yellow-gold eyes and teeth as the primary accent, warm skin tone as the secondary, and her
+// white gloves as a bright neutral tertiary. Deliberately one scheme regardless of light/dark -
+// the character's whole aesthetic is a dark one, and a "light Cyn" isn't really Cyn.
+val CynPrimary = Color(0xFFFFC72C)
+val CynOnPrimary = Color(0xFF2B1600)
+val CynPrimaryContainer = Color(0xFF6B4400)
+val CynOnPrimaryContainer = Color(0xFFFFE0A3)
+val CynSecondary = Color(0xFFC9905B)
+val CynOnSecondary = Color(0xFF2B1600)
+val CynSecondaryContainer = Color(0xFF4A2F1A)
+val CynOnSecondaryContainer = Color(0xFFF0D2B0)
+val CynTertiary = Color(0xFFF2E9DA)
+val CynOnTertiary = Color(0xFF2B1600)
+val CynTertiaryContainer = Color(0xFF4A4034)
+val CynOnTertiaryContainer = Color(0xFFF2E9DA)
+val CynBackground = Color(0xFF0D0B08)
+val CynOnBackground = Color(0xFFEDE6DC)
+val CynSurface = Color(0xFF14110C)
+val CynOnSurface = Color(0xFFEDE6DC)
+val CynSurfaceVariant = Color(0xFF251F17)
+val CynOnSurfaceVariant = Color(0xFFC9BCA8)
+val CynOutline = Color(0xFF5C5040)
+val CynError = Color(0xFFFF6659)
+val CynOnError = Color(0xFF2B0000)
