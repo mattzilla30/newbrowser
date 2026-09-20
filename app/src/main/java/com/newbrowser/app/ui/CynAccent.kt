@@ -32,7 +32,7 @@ fun CynAccentLine(modifier: Modifier = Modifier) {
     )
 }
 
-/** A "nothing here yet" placeholder with a watching eye - a small nod to Cyn's hundreds of them. */
+/** A "nothing here yet" placeholder with a watching eye - a small nod to Cyn's own visor/eye. */
 @Composable
 fun CynEmptyState(message: String, modifier: Modifier = Modifier) {
     Box(modifier = modifier.fillMaxSize()) {
