@@ -1,12 +1,15 @@
 package com.newbrowser.app.ui
 
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.biometric.BiometricManager
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -21,6 +24,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -43,6 +47,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.newbrowser.app.data.BrowserSettings
@@ -61,6 +66,8 @@ fun SettingsScreen(
     onBack: () -> Unit,
 ) {
     BackHandler(onBack = onBack)
+    val context = LocalContext.current
+    var confirmClearDataVisible by remember { mutableStateOf(false) }
 
     Surface(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -120,7 +127,7 @@ fun SettingsScreen(
                 )
 
                 Button(
-                    onClick = onClearBrowsingData,
+                    onClick = { confirmClearDataVisible = true },
                     modifier = Modifier.padding(top = 24.dp, bottom = 8.dp),
                 ) {
                     Text("Clear browsing data")
@@ -131,11 +138,12 @@ fun SettingsScreen(
                 SectionHeader("Appearance")
 
                 Text("Theme color", modifier = Modifier.padding(bottom = 8.dp))
-                Row(
+                FlowRow(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 24.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     CynColorSwatch(
                         selected = appSettings.themeColorIndex == CYN_THEME_INDEX,
@@ -156,11 +164,12 @@ fun SettingsScreen(
                 }
 
                 Text("Page text size", modifier = Modifier.padding(bottom = 8.dp))
-                Row(
+                FlowRow(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 24.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     listOf(75, 100, 125, 150, 200).forEach { percent ->
                         val selected = appSettings.pageTextZoom == percent
@@ -176,7 +185,7 @@ fun SettingsScreen(
 
                 HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
 
-                SectionHeader("Shields")
+                SectionHeader("Privacy")
 
                 SettingSwitchRow(
                     label = "Block pop-ups",
@@ -200,6 +209,46 @@ fun SettingsScreen(
                     modifier = Modifier.padding(top = 4.dp, bottom = 16.dp),
                 )
 
+                SettingSwitchRow(
+                    label = "Block third-party cookies",
+                    checked = appSettings.blockThirdPartyCookies,
+                    onCheckedChange = appSettings::updateBlockThirdPartyCookies,
+                )
+                Text(
+                    text = "Stops sites embedded in other pages (trackers, ad networks) from reading or setting cookies.",
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(top = 4.dp, bottom = 16.dp),
+                )
+
+                SettingSwitchRow(
+                    label = "Lock private tabs",
+                    checked = appSettings.lockPrivateTabsEnabled,
+                    onCheckedChange = { enable ->
+                        if (enable) {
+                            val canAuthenticate = BiometricManager.from(context).canAuthenticate(
+                                BiometricManager.Authenticators.BIOMETRIC_WEAK or
+                                    BiometricManager.Authenticators.DEVICE_CREDENTIAL,
+                            )
+                            if (canAuthenticate == BiometricManager.BIOMETRIC_SUCCESS) {
+                                appSettings.updateLockPrivateTabsEnabled(true)
+                            } else {
+                                Toast.makeText(
+                                    context,
+                                    "Set up a screen lock (PIN, pattern, or fingerprint) to use this",
+                                    Toast.LENGTH_LONG,
+                                ).show()
+                            }
+                        } else {
+                            appSettings.updateLockPrivateTabsEnabled(false)
+                        }
+                    },
+                )
+                Text(
+                    text = "Requires your fingerprint, face, or PIN to reopen private tabs after leaving the app.",
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(top = 4.dp, bottom = 16.dp),
+                )
+
                 HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
 
                 SectionHeader("Developer")
@@ -217,6 +266,23 @@ fun SettingsScreen(
                 )
             }
         }
+    }
+
+    if (confirmClearDataVisible) {
+        AlertDialog(
+            onDismissRequest = { confirmClearDataVisible = false },
+            title = { Text("Clear browsing data?") },
+            text = { Text("This removes cookies, site storage, and history. This can't be undone.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    onClearBrowsingData()
+                    confirmClearDataVisible = false
+                }) { Text("Clear") }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmClearDataVisible = false }) { Text("Cancel") }
+            },
+        )
     }
 }
 
@@ -268,24 +334,30 @@ private fun SearchEngineRow(
 private fun CynColorSwatch(selected: Boolean, onClick: () -> Unit) {
     Box(
         modifier = Modifier
-            .size(36.dp)
-            .clip(CircleShape)
-            .background(Brush.linearGradient(listOf(CynPrimary, CynSecondary)))
-            .border(
-                width = if (selected) 2.dp else 0.dp,
-                color = MaterialTheme.colorScheme.onSurface,
-                shape = CircleShape,
-            )
+            .size(48.dp)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        if (selected) {
-            Icon(
-                Icons.Filled.Check,
-                contentDescription = "Selected",
-                tint = Color.White,
-                modifier = Modifier.size(18.dp),
-            )
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .clip(CircleShape)
+                .background(Brush.linearGradient(listOf(CynPrimary, CynSecondary)))
+                .border(
+                    width = if (selected) 2.dp else 0.dp,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    shape = CircleShape,
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (selected) {
+                Icon(
+                    Icons.Filled.Check,
+                    contentDescription = "Selected",
+                    tint = Color.White,
+                    modifier = Modifier.size(18.dp),
+                )
+            }
         }
     }
 }
@@ -294,24 +366,30 @@ private fun CynColorSwatch(selected: Boolean, onClick: () -> Unit) {
 private fun ColorSwatch(color: Color?, selected: Boolean, onClick: () -> Unit) {
     Box(
         modifier = Modifier
-            .size(36.dp)
-            .clip(CircleShape)
-            .background(color ?: MaterialTheme.colorScheme.surfaceVariant)
-            .border(
-                width = if (selected) 2.dp else 0.dp,
-                color = MaterialTheme.colorScheme.onSurface,
-                shape = CircleShape,
-            )
+            .size(48.dp)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        if (selected) {
-            Icon(
-                Icons.Filled.Check,
-                contentDescription = "Selected",
-                tint = if (color != null) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(18.dp),
-            )
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .clip(CircleShape)
+                .background(color ?: MaterialTheme.colorScheme.surfaceVariant)
+                .border(
+                    width = if (selected) 2.dp else 0.dp,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    shape = CircleShape,
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (selected) {
+                Icon(
+                    Icons.Filled.Check,
+                    contentDescription = "Selected",
+                    tint = if (color != null) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(18.dp),
+                )
+            }
         }
     }
 }

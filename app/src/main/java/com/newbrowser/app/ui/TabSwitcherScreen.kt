@@ -72,6 +72,7 @@ fun TabSwitcherScreen(
     var overflowExpanded by remember { mutableStateOf(false) }
     var groupDialogTab by remember { mutableStateOf<BrowserTab?>(null) }
     var recentlyClosedDialogVisible by remember { mutableStateOf(false) }
+    var confirmCloseAllVisible by remember { mutableStateOf(false) }
 
     val filteredTabs = tabManager.tabs.filter { tab ->
         searchQuery.isBlank() ||
@@ -124,7 +125,7 @@ fun TabSwitcherScreen(
                     DropdownMenu(expanded = overflowExpanded, onDismissRequest = { overflowExpanded = false }) {
                         DropdownMenuItem(text = { Text("Close all tabs") }, onClick = {
                             overflowExpanded = false
-                            tabManager.closeAllTabs()
+                            confirmCloseAllVisible = true
                         })
                         DropdownMenuItem(
                             text = { Text("Recently closed (${tabManager.recentlyClosed.size})") },
@@ -218,6 +219,23 @@ fun TabSwitcherScreen(
                 onBack()
             },
             onDismiss = { recentlyClosedDialogVisible = false },
+        )
+    }
+
+    if (confirmCloseAllVisible) {
+        AlertDialog(
+            onDismissRequest = { confirmCloseAllVisible = false },
+            title = { Text("Close all tabs?") },
+            text = { Text("This closes all ${tabManager.tabs.size} open tabs and starts a fresh new tab.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    tabManager.closeAllTabs()
+                    confirmCloseAllVisible = false
+                }) { Text("Close all") }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmCloseAllVisible = false }) { Text("Cancel") }
+            },
         )
     }
 }

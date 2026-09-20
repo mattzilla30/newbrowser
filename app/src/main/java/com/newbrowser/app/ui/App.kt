@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -31,6 +32,11 @@ fun NewBrowserApp(
 
     LaunchedEffect(appSettings.remoteDebuggingEnabled) {
         WebView.setWebContentsDebuggingEnabled(appSettings.remoteDebuggingEnabled)
+    }
+
+    SideEffect {
+        PrivacyLockController.lockEnabled = appSettings.lockPrivateTabsEnabled
+        PrivacyLockController.hasIncognitoTabs = tabManager.tabs.any { it.isIncognito }
     }
 
     LaunchedEffect(pendingUrl) {
@@ -106,6 +112,16 @@ fun NewBrowserApp(
             Screen.SitePermissions -> SitePermissionsScreen(
                 database = database,
                 onBack = { screen = Screen.Browser },
+            )
+        }
+
+        if (PrivacyLockController.isLocked) {
+            LockScreen(
+                onUnlocked = { PrivacyLockController.unlock() },
+                onCloseTabsInstead = {
+                    tabManager.tabs.filter { it.isIncognito }.forEach(tabManager::closeTab)
+                    PrivacyLockController.unlock()
+                },
             )
         }
     }

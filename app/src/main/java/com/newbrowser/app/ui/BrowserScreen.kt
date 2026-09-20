@@ -18,6 +18,7 @@ import android.print.PrintAttributes
 import android.print.PrintManager
 import android.view.View
 import android.view.ViewGroup
+import android.webkit.CookieManager
 import android.webkit.GeolocationPermissions
 import android.webkit.JsPromptResult
 import android.webkit.JsResult
@@ -85,6 +86,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -96,6 +99,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -119,6 +123,7 @@ import com.newbrowser.app.ui.tabs.NEW_TAB_URL
 import com.newbrowser.app.ui.tabs.TabManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import org.json.JSONTokener
@@ -152,6 +157,12 @@ fun BrowserScreen(
     var findTotal by remember { mutableIntStateOf(0) }
 
     var isBookmarked by remember(activeTab.url) { mutableStateOf(database.isBookmarked(activeTab.url)) }
+
+    val snackbarHostState = remember { SnackbarHostState() }
+    val coroutineScope = rememberCoroutineScope()
+    fun showSnackbar(message: String) {
+        coroutineScope.launch { snackbarHostState.showSnackbar(message) }
+    }
 
     var longPressLinkUrl by remember { mutableStateOf<String?>(null) }
     var readerContent by remember { mutableStateOf<ReaderContent?>(null) }
@@ -221,6 +232,7 @@ fun BrowserScreen(
             settings.displayZoomControls = false
             settings.javaScriptCanOpenWindowsAutomatically = true
             settings.setSupportMultipleWindows(true)
+            CookieManager.getInstance().setAcceptThirdPartyCookies(this, !appSettings.blockThirdPartyCookies)
 
             if (WebViewFeature.isFeatureSupported(WebViewFeature.ALGORITHMIC_DARKENING)) {
                 WebSettingsCompat.setAlgorithmicDarkeningAllowed(settings, appSettings.darkModeForPages)
@@ -544,6 +556,10 @@ fun BrowserScreen(
         }
     }
 
+    LaunchedEffect(appSettings.blockThirdPartyCookies) {
+        CookieManager.getInstance().setAcceptThirdPartyCookies(webView, !appSettings.blockThirdPartyCookies)
+    }
+
     LaunchedEffect(tabManager.activeTabId) {
         findBarVisible = false
         findQuery = ""
@@ -604,6 +620,9 @@ fun BrowserScreen(
         webView.saveWebArchive(file.absolutePath, false) { savedPath ->
             if (savedPath != null) {
                 database.addSavedPage(pageUrl, pageTitle, savedPath)
+                showSnackbar("Page saved offline")
+            } else {
+                showSnackbar("Couldn't save this page")
             }
         }
     }
@@ -722,8 +741,10 @@ fun BrowserScreen(
                     IconButton(onClick = {
                         if (isBookmarked) {
                             database.removeBookmark(activeTab.url)
+                            showSnackbar("Bookmark removed")
                         } else {
                             database.addBookmark(activeTab.url, activeTab.title)
+                            showSnackbar("Bookmark added")
                         }
                         isBookmarked = !isBookmarked
                     }) {
@@ -862,6 +883,7 @@ fun BrowserScreen(
                         DropdownMenuItem(text = { Text("Save to Reading List") }, onClick = {
                             menuExpanded = false
                             database.addToReadingList(activeTab.url, activeTab.title.ifBlank { activeTab.url })
+                            showSnackbar("Saved to Reading List")
                         })
                         DropdownMenuItem(text = { Text("Reading List") }, onClick = {
                             menuExpanded = false
@@ -930,6 +952,14 @@ fun BrowserScreen(
             onClose = { readerContent = null },
         )
     }
+
+    SnackbarHost(
+        hostState = snackbarHostState,
+        modifier = Modifier
+            .align(Alignment.BottomCenter)
+            .windowInsetsPadding(WindowInsets.navigationBars)
+            .padding(bottom = 56.dp),
+    )
     }
 
     longPressLinkUrl?.let { url ->
@@ -1136,7 +1166,8 @@ private fun NewTabPage(
                 modifier = Modifier.padding(top = 24.dp, bottom = 8.dp),
             )
             LazyVerticalGrid(
-                columns = GridCells.Fixed(3),
+                columns = GridCells.Adaptive(minSize = 88.dp),
+                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {

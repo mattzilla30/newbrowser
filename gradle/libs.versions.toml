@@ -9,6 +9,7 @@ material3 = "1.4.0"
 webkit = "1.12.1"
 swiperefreshlayout = "1.1.0"
 splashscreen = "1.0.1"
+biometric = "1.1.0"
 
 [libraries]
 core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -17,6 +18,7 @@ activity-compose = { group = "androidx.activity", name = "activity-compose", ver
 webkit = { group = "androidx.webkit", name = "webkit", version.ref = "webkit" }
 swiperefreshlayout = { group = "androidx.swiperefreshlayout", name = "swiperefreshlayout", version.ref = "swiperefreshlayout" }
 splashscreen = { group = "androidx.core", name = "core-splashscreen", version.ref = "splashscreen" }
+biometric = { group = "androidx.biometric", name = "biometric", version.ref = "biometric" }
 compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" }
 compose-ui = { group = "androidx.compose.ui", name = "ui" }
 compose-ui-graphics = { group = "androidx.compose.ui", name = "ui-graphics" }

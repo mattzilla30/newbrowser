@@ -39,6 +39,12 @@ class BrowserSettings(private val preferences: BrowserPreferences) {
     var themeColorIndex by mutableStateOf(preferences.themeColorIndex)
         private set
 
+    var lockPrivateTabsEnabled by mutableStateOf(preferences.lockPrivateTabsEnabled)
+        private set
+
+    var blockThirdPartyCookies by mutableStateOf(preferences.blockThirdPartyCookies)
+        private set
+
     fun updateHomeUrl(value: String) {
         homeUrl = value
         preferences.homeUrl = value
@@ -82,5 +88,15 @@ class BrowserSettings(private val preferences: BrowserPreferences) {
     fun updateThemeColorIndex(value: Int) {
         themeColorIndex = value
         preferences.themeColorIndex = value
+    }
+
+    fun updateLockPrivateTabsEnabled(value: Boolean) {
+        lockPrivateTabsEnabled = value
+        preferences.lockPrivateTabsEnabled = value
+    }
+
+    fun updateBlockThirdPartyCookies(value: Boolean) {
+        blockThirdPartyCookies = value
+        preferences.blockThirdPartyCookies = value
     }
 }

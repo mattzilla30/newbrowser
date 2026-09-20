@@ -21,6 +21,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -37,6 +38,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.core.content.FileProvider
 import com.newbrowser.app.data.BrowserDatabase
 import com.newbrowser.app.data.DownloadRecord
 import com.newbrowser.app.data.SavedPage
@@ -86,6 +88,7 @@ fun DownloadsScreen(
                             SavedPageRow(
                                 page = page,
                                 onOpen = { onOpenSavedPage("file://${page.filePath}") },
+                                onShare = { shareSavedPage(context, page) },
                                 onDelete = {
                                     database.removeSavedPage(page.id)
                                     File(page.filePath).delete()
@@ -101,6 +104,7 @@ fun DownloadsScreen(
                             DownloadRow(
                                 record = record,
                                 onOpen = { openDownload(context, record.downloadManagerId) },
+                                onShare = { shareDownload(context, record.downloadManagerId) },
                                 onDelete = {
                                     val downloadManager =
                                         context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
@@ -130,7 +134,12 @@ private fun SectionLabel(title: String) {
 }
 
 @Composable
-private fun DownloadRow(record: DownloadRecord, onOpen: () -> Unit, onDelete: () -> Unit) {
+private fun DownloadRow(
+    record: DownloadRecord,
+    onOpen: () -> Unit,
+    onShare: () -> Unit,
+    onDelete: () -> Unit,
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -142,6 +151,9 @@ private fun DownloadRow(record: DownloadRecord, onOpen: () -> Unit, onDelete: ()
             Text(record.fileName, style = MaterialTheme.typography.bodyLarge, maxLines = 1)
             Text(record.url, style = MaterialTheme.typography.bodySmall, maxLines = 1)
         }
+        IconButton(onClick = onShare) {
+            Icon(Icons.Filled.Share, contentDescription = "Share download")
+        }
         IconButton(onClick = onDelete) {
             Icon(Icons.Filled.Delete, contentDescription = "Delete download")
         }
@@ -149,7 +161,12 @@ private fun DownloadRow(record: DownloadRecord, onOpen: () -> Unit, onDelete: ()
 }
 
 @Composable
-private fun SavedPageRow(page: SavedPage, onOpen: () -> Unit, onDelete: () -> Unit) {
+private fun SavedPageRow(
+    page: SavedPage,
+    onOpen: () -> Unit,
+    onShare: () -> Unit,
+    onDelete: () -> Unit,
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -160,6 +177,9 @@ private fun SavedPageRow(page: SavedPage, onOpen: () -> Unit, onDelete: () -> Un
         Column(modifier = Modifier.weight(1f)) {
             Text(page.title, style = MaterialTheme.typography.bodyLarge, maxLines = 1)
             Text(page.url, style = MaterialTheme.typography.bodySmall, maxLines = 1)
+        }
+        IconButton(onClick = onShare) {
+            Icon(Icons.Filled.Share, contentDescription = "Share saved page")
         }
         IconButton(onClick = onDelete) {
             Icon(Icons.Filled.Delete, contentDescription = "Delete saved page")
@@ -189,4 +209,38 @@ private fun openDownload(context: Context, downloadManagerId: Long) {
     } catch (e: ActivityNotFoundException) {
         Toast.makeText(context, "No app found to open this file", Toast.LENGTH_SHORT).show()
     }
+}
+
+private fun shareDownload(context: Context, downloadManagerId: Long) {
+    val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+    val uri = try {
+        downloadManager.getUriForDownloadedFile(downloadManagerId)
+    } catch (e: Exception) {
+        null
+    }
+    if (uri == null) {
+        Toast.makeText(context, "Download not available", Toast.LENGTH_SHORT).show()
+        return
+    }
+    val intent = Intent(Intent.ACTION_SEND).apply {
+        type = downloadManager.getMimeTypeForDownloadedFile(downloadManagerId) ?: "*/*"
+        putExtra(Intent.EXTRA_STREAM, uri)
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    }
+    context.startActivity(Intent.createChooser(intent, "Share download"))
+}
+
+private fun shareSavedPage(context: Context, page: SavedPage) {
+    val file = File(page.filePath)
+    if (!file.exists()) {
+        Toast.makeText(context, "Saved page file is missing", Toast.LENGTH_SHORT).show()
+        return
+    }
+    val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+    val intent = Intent(Intent.ACTION_SEND).apply {
+        type = "multipart/related"
+        putExtra(Intent.EXTRA_STREAM, uri)
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    }
+    context.startActivity(Intent.createChooser(intent, "Share saved page"))
 }

@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -23,6 +24,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -43,6 +45,7 @@ fun HistoryScreen(
     BackHandler(onBack = onBack)
     var history by remember { mutableStateOf(database.getHistory()) }
     var query by remember { mutableStateOf("") }
+    var confirmClearVisible by remember { mutableStateOf(false) }
 
     val filtered = remember(history, query) {
         if (query.isBlank()) {
@@ -74,10 +77,10 @@ fun HistoryScreen(
                         .weight(1f)
                         .padding(start = 8.dp),
                 )
-                IconButton(onClick = {
-                    database.clearHistory()
-                    history = emptyList()
-                }) {
+                IconButton(
+                    onClick = { confirmClearVisible = true },
+                    enabled = history.isNotEmpty(),
+                ) {
                     Icon(Icons.Filled.Delete, contentDescription = "Clear history")
                 }
             }
@@ -104,6 +107,24 @@ fun HistoryScreen(
                 }
             }
         }
+    }
+
+    if (confirmClearVisible) {
+        AlertDialog(
+            onDismissRequest = { confirmClearVisible = false },
+            title = { Text("Clear history?") },
+            text = { Text("This removes all ${history.size} entries from your browsing history. This can't be undone.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    database.clearHistory()
+                    history = emptyList()
+                    confirmClearVisible = false
+                }) { Text("Clear") }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmClearVisible = false }) { Text("Cancel") }
+            },
+        )
     }
 }
 

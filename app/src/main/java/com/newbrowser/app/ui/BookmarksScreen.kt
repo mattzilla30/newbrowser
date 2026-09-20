@@ -20,6 +20,8 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FileOpen
 import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.SortByAlpha
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -71,13 +73,15 @@ fun BookmarksScreen(
     val context = LocalContext.current
     var bookmarks by remember { mutableStateOf(database.getBookmarks()) }
     var query by remember { mutableStateOf("") }
+    var sortAlphabetically by remember { mutableStateOf(false) }
 
-    val filtered = remember(bookmarks, query) {
-        if (query.isBlank()) {
+    val filtered = remember(bookmarks, query, sortAlphabetically) {
+        val matches = if (query.isBlank()) {
             bookmarks
         } else {
             bookmarks.filter { it.url.contains(query, ignoreCase = true) || it.title.contains(query, ignoreCase = true) }
         }
+        if (sortAlphabetically) matches.sortedBy { it.title.lowercase() } else matches.sortedByDescending { it.createdAt }
     }
 
     val importLauncher = rememberLauncherForActivityResult(
@@ -134,6 +138,16 @@ fun BookmarksScreen(
                         .weight(1f)
                         .padding(start = 8.dp),
                 )
+                IconButton(onClick = { sortAlphabetically = !sortAlphabetically }) {
+                    Icon(
+                        if (sortAlphabetically) Icons.Filled.Schedule else Icons.Filled.SortByAlpha,
+                        contentDescription = if (sortAlphabetically) {
+                            "Sort by date added"
+                        } else {
+                            "Sort alphabetically"
+                        },
+                    )
+                }
                 IconButton(onClick = { exportLauncher.launch("bookmarks.html") }) {
                     Icon(Icons.Filled.Save, contentDescription = "Export bookmarks")
                 }

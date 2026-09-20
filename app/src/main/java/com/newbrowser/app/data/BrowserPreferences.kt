@@ -12,6 +12,8 @@ private const val KEY_DO_NOT_TRACK = "do_not_track"
 private const val KEY_REMOTE_DEBUGGING_ENABLED = "remote_debugging_enabled"
 private const val KEY_PAGE_TEXT_ZOOM = "page_text_zoom"
 private const val KEY_THEME_COLOR_INDEX = "theme_color_index"
+private const val KEY_LOCK_PRIVATE_TABS = "lock_private_tabs_enabled"
+private const val KEY_BLOCK_THIRD_PARTY_COOKIES = "block_third_party_cookies"
 private const val DEFAULT_HOME_URL = "https://duckduckgo.com"
 private const val DEFAULT_SEARCH_ENGINE = "duckduckgo"
 
@@ -61,4 +63,13 @@ class BrowserPreferences(context: Context) {
     var themeColorIndex: Int
         get() = prefs.getInt(KEY_THEME_COLOR_INDEX, CYN_THEME_INDEX)
         set(value) = prefs.edit().putInt(KEY_THEME_COLOR_INDEX, value).apply()
+
+    /** Requires biometric/PIN authentication before showing private tabs after the app backgrounds. */
+    var lockPrivateTabsEnabled: Boolean
+        get() = prefs.getBoolean(KEY_LOCK_PRIVATE_TABS, false)
+        set(value) = prefs.edit().putBoolean(KEY_LOCK_PRIVATE_TABS, value).apply()
+
+    var blockThirdPartyCookies: Boolean
+        get() = prefs.getBoolean(KEY_BLOCK_THIRD_PARTY_COOKIES, false)
+        set(value) = prefs.edit().putBoolean(KEY_BLOCK_THIRD_PARTY_COOKIES, value).apply()
 }
