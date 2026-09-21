@@ -4,11 +4,13 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -48,6 +50,26 @@ fun ActionGrid(actions: List<GridAction>, modifier: Modifier = Modifier) {
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         items(actions) { action -> ActionTile(action) }
+    }
+}
+
+/**
+ * Same look as [ActionGrid], but non-lazy - for a bounded action list that sits inside a
+ * container that's already scrolling (like the new-tab page), where a lazy grid would crash
+ * with "vertically scrollable component measured with infinity height constraints".
+ */
+@Composable
+fun ActionFlowGrid(actions: List<GridAction>, modifier: Modifier = Modifier) {
+    FlowRow(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        actions.forEach { action ->
+            Box(modifier = Modifier.width(72.dp)) {
+                ActionTile(action)
+            }
+        }
     }
 }
 

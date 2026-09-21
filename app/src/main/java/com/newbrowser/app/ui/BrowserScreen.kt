@@ -50,6 +50,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -60,12 +61,10 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.foundation.text.KeyboardActions
@@ -1407,7 +1406,7 @@ private fun NewTabPage(
             )
         }
 
-        ActionGrid(
+        ActionFlowGrid(
             modifier = Modifier.padding(top = 24.dp),
             actions = listOf(
                 GridAction("Bookmarks", Icons.Filled.Bookmarks, onClick = onOpenBookmarks),
@@ -1427,13 +1426,12 @@ private fun NewTabPage(
                     .fillMaxWidth()
                     .padding(top = 24.dp, bottom = 8.dp),
             )
-            LazyVerticalGrid(
-                columns = GridCells.Adaptive(minSize = 72.dp),
+            FlowRow(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                items(topSites, key = { it.id }) { site ->
+                topSites.forEach { site ->
                     TopSiteTile(site = site, onClick = { onOpenSite(site.url) })
                 }
             }
@@ -1473,7 +1471,7 @@ private fun TopSiteTile(site: HistoryEntry, onClick: () -> Unit) {
     val host = Uri.parse(site.url).host ?: site.url
     Column(
         modifier = Modifier
-            .fillMaxWidth()
+            .width(72.dp)
             .clickable(onClick = onClick),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
