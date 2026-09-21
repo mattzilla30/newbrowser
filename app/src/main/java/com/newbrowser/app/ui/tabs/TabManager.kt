@@ -79,6 +79,19 @@ class TabManager(
         return tab
     }
 
+    /**
+     * Adds a tab without activating or loading it - for "Send to Web Head" links that should
+     * sit lazily in the background until the user actually switches to them (via the tab
+     * switcher, or by tapping a Web Head notification), rather than interrupting the page
+     * currently on screen.
+     */
+    fun newBackgroundTab(url: String, incognito: Boolean = false): BrowserTab {
+        val tab = BrowserTab(id = nextId++, isIncognito = incognito, initialUrl = url)
+        tabs.add(tab)
+        persistTabs()
+        return tab
+    }
+
     fun selectTab(tab: BrowserTab) {
         if (tab.id == activeTabId) return
         val previous = activeTab

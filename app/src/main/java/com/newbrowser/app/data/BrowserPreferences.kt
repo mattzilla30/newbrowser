@@ -14,6 +14,7 @@ private const val KEY_PAGE_TEXT_ZOOM = "page_text_zoom"
 private const val KEY_THEME_COLOR_INDEX = "theme_color_index"
 private const val KEY_LOCK_PRIVATE_TABS = "lock_private_tabs_enabled"
 private const val KEY_BLOCK_THIRD_PARTY_COOKIES = "block_third_party_cookies"
+private const val KEY_WEB_HEADS_ENABLED = "web_heads_enabled"
 private const val DEFAULT_HOME_URL = "https://duckduckgo.com"
 private const val DEFAULT_SEARCH_ENGINE = "duckduckgo"
 
@@ -72,4 +73,9 @@ class BrowserPreferences(context: Context) {
     var blockThirdPartyCookies: Boolean
         get() = prefs.getBoolean(KEY_BLOCK_THIRD_PARTY_COOKIES, false)
         set(value) = prefs.edit().putBoolean(KEY_BLOCK_THIRD_PARTY_COOKIES, value).apply()
+
+    /** Send-to-Web-Head links post a bubble/notification instead of switching away from the page. */
+    var webHeadsEnabled: Boolean
+        get() = prefs.getBoolean(KEY_WEB_HEADS_ENABLED, false)
+        set(value) = prefs.edit().putBoolean(KEY_WEB_HEADS_ENABLED, value).apply()
 }

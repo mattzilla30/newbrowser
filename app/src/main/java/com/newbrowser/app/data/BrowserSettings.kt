@@ -45,6 +45,9 @@ class BrowserSettings(private val preferences: BrowserPreferences) {
     var blockThirdPartyCookies by mutableStateOf(preferences.blockThirdPartyCookies)
         private set
 
+    var webHeadsEnabled by mutableStateOf(preferences.webHeadsEnabled)
+        private set
+
     fun updateHomeUrl(value: String) {
         homeUrl = value
         preferences.homeUrl = value
@@ -98,5 +101,10 @@ class BrowserSettings(private val preferences: BrowserPreferences) {
     fun updateBlockThirdPartyCookies(value: Boolean) {
         blockThirdPartyCookies = value
         preferences.blockThirdPartyCookies = value
+    }
+
+    fun updateWebHeadsEnabled(value: Boolean) {
+        webHeadsEnabled = value
+        preferences.webHeadsEnabled = value
     }
 }

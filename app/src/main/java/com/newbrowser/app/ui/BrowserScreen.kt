@@ -4,6 +4,7 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.DownloadManager
+import android.content.ActivityNotFoundException
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -88,6 +89,7 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.PushPin
@@ -643,6 +645,15 @@ fun BrowserScreen(
         context.startActivity(Intent.createChooser(sendIntent, null))
     }
 
+    fun openInAnotherApp() {
+        val viewIntent = Intent(Intent.ACTION_VIEW, Uri.parse(activeTab.url))
+        try {
+            context.startActivity(Intent.createChooser(viewIntent, "Open with"))
+        } catch (e: ActivityNotFoundException) {
+            showSnackbar("No other app can open this page")
+        }
+    }
+
     fun printPage() {
         val printManager = context.getSystemService(Context.PRINT_SERVICE) as PrintManager
         val jobName = activeTab.title.ifBlank { "Web page" }
@@ -997,6 +1008,7 @@ fun BrowserScreen(
             onToggleDesktopSite = { toggleDesktopSite() },
             onReaderMode = { openReaderMode() },
             onSharePage = { sharePage() },
+            onOpenInAnotherApp = { openInAnotherApp() },
             onPrint = { printPage() },
             onSaveOffline = { savePageOffline() },
             onPinWebApp = { addToHomeScreen() },
@@ -1070,6 +1082,14 @@ fun BrowserScreen(
                         tabManager.newTab(url = url, incognito = activeTab.isIncognito)
                         longPressLinkUrl = null
                     }) { Text("Open in new tab") }
+                    if (appSettings.webHeadsEnabled) {
+                        TextButton(onClick = {
+                            val bgTab = tabManager.newBackgroundTab(url = url, incognito = activeTab.isIncognito)
+                            WebHeadNotifier.postWebHead(context, bgTab)
+                            showSnackbar("Sent to Web Head")
+                            longPressLinkUrl = null
+                        }) { Text("Send to Web Head") }
+                    }
                     TextButton(onClick = {
                         clipboard.setPrimaryClip(ClipData.newPlainText("link", url))
                         longPressLinkUrl = null
@@ -1250,6 +1270,7 @@ private fun MenuSheet(
     onToggleDesktopSite: () -> Unit,
     onReaderMode: () -> Unit,
     onSharePage: () -> Unit,
+    onOpenInAnotherApp: () -> Unit,
     onPrint: () -> Unit,
     onSaveOffline: () -> Unit,
     onPinWebApp: () -> Unit,
@@ -1287,6 +1308,7 @@ private fun MenuSheet(
                 )
                 add(GridAction("Reader mode", Icons.AutoMirrored.Filled.MenuBook) { onAction(onReaderMode) })
                 add(GridAction("Share page", Icons.Filled.Share) { onAction(onSharePage) })
+                add(GridAction("Open in another app", Icons.Filled.OpenInNew) { onAction(onOpenInAnotherApp) })
                 add(GridAction("Print", Icons.Filled.Print) { onAction(onPrint) })
                 add(GridAction("Save offline", Icons.Filled.Download) { onAction(onSaveOffline) })
                 add(GridAction("Pin Web App", Icons.Filled.PushPin) { onAction(onPinWebApp) })

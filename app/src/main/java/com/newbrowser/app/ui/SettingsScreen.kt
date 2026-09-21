@@ -1,7 +1,10 @@
 package com.newbrowser.app.ui
 
+import android.os.Build
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.biometric.BiometricManager
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -23,6 +26,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.BubbleChart
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Cookie
@@ -254,6 +258,51 @@ fun SettingsScreen(
                                     }
                                 },
                             )
+                        }
+                    }
+                }
+
+                Column {
+                    SectionHeader("Web Heads")
+                    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+                        ActivityResultContracts.RequestPermission(),
+                    ) { granted ->
+                        appSettings.updateWebHeadsEnabled(granted)
+                        if (!granted) {
+                            Toast.makeText(context, "Notification permission is needed for Web Heads", Toast.LENGTH_LONG).show()
+                        }
+                    }
+                    GroupedCard {
+                        CardRow(
+                            icon = Icons.Filled.BubbleChart,
+                            title = "Enable Web Heads",
+                            subtitle = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                                "Send a link to a bubble without leaving the page you're on"
+                            } else {
+                                "Needs Android 11 or later"
+                            },
+                        ) {
+                            Switch(
+                                checked = appSettings.webHeadsEnabled,
+                                enabled = Build.VERSION.SDK_INT >= Build.VERSION_CODES.R,
+                                onCheckedChange = { enable ->
+                                    if (enable && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                                        !WebHeadNotifier.canPostNotifications(context)
+                                    ) {
+                                        notificationPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                                    } else {
+                                        appSettings.updateWebHeadsEnabled(enable)
+                                    }
+                                },
+                            )
+                        }
+                        if (appSettings.webHeadsEnabled && WebHeadNotifier.canOpenBubbleSettings()) {
+                            CardRow(
+                                icon = Icons.Filled.BubbleChart,
+                                title = "Confirm bubbles are allowed",
+                                subtitle = "Opens this app's notification settings",
+                                modifier = Modifier.clickable { WebHeadNotifier.openBubbleSettings(context) },
+                            ) {}
                         }
                     }
                 }

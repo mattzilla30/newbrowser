@@ -41,7 +41,11 @@ fun NewBrowserApp(
 
     LaunchedEffect(pendingUrl) {
         if (pendingUrl != null) {
-            tabManager.newTab(url = pendingUrl)
+            // A Web Head bubble targets an already-open background tab by URL; reuse it
+            // instead of opening a duplicate. Any other external VIEW intent (the common
+            // case) just opens a fresh tab as before, since nothing will match.
+            val existing = tabManager.tabs.find { it.url == pendingUrl }
+            if (existing != null) tabManager.selectTab(existing) else tabManager.newTab(url = pendingUrl)
             screen = Screen.Browser
             onPendingUrlConsumed()
         }

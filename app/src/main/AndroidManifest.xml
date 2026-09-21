@@ -6,6 +6,9 @@
     <uses-permission
         android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="28" />
+    <!-- Requested at runtime before posting a Web Head notification/bubble (API 33+ only;
+         posting notifications was ungated before that). -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!--
         These four are only requested at runtime, with an explicit allow/deny prompt, when a
         web page asks for camera, microphone, or location access (WebView's onPermissionRequest
@@ -37,6 +40,8 @@
             android:launchMode="singleTask"
             android:theme="@style/Theme.Splash"
             android:supportsPictureInPicture="true"
+            android:resizeableActivity="true"
+            android:allowEmbedded="true"
             android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
