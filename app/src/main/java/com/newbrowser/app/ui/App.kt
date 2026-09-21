@@ -113,6 +113,15 @@ fun NewBrowserApp(
                 database = database,
                 onBack = { screen = Screen.Browser },
             )
+
+            Screen.Extensions -> ExtensionsScreen(
+                appSettings = appSettings,
+                onBack = { screen = Screen.Browser },
+            )
+
+            Screen.SafeLocker -> SafeLockerScreen(
+                onBack = { screen = Screen.Browser },
+            )
         }
 
         if (PrivacyLockController.isLocked) {

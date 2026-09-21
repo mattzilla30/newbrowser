@@ -24,6 +24,14 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Code
+import androidx.compose.material.icons.filled.Cookie
+import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.Javascript
+import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.OpenInNew
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
@@ -95,175 +103,176 @@ fun SettingsScreen(
             Column(
                 modifier = Modifier
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 16.dp),
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(24.dp),
             ) {
-                SectionHeader("General")
-
-                Text("Home page")
-                OutlinedTextField(
-                    value = appSettings.homeUrl,
-                    onValueChange = appSettings::updateHomeUrl,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 8.dp, bottom = 24.dp),
-                    singleLine = true,
-                )
-
-                SettingSwitchRow(
-                    label = "Enable JavaScript",
-                    checked = appSettings.javaScriptEnabled,
-                    onCheckedChange = appSettings::updateJavaScriptEnabled,
-                )
-
-                SearchEngineRow(
-                    selectedKey = appSettings.searchEngineKey,
-                    onSelect = appSettings::updateSearchEngineKey,
-                )
-
-                SettingSwitchRow(
-                    label = "Dark mode for web pages",
-                    checked = appSettings.darkModeForPages,
-                    onCheckedChange = appSettings::updateDarkModeForPages,
-                )
-
-                Button(
-                    onClick = { confirmClearDataVisible = true },
-                    modifier = Modifier.padding(top = 24.dp, bottom = 8.dp),
-                ) {
-                    Text("Clear browsing data")
-                }
-
-                HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
-
-                SectionHeader("Appearance")
-
-                Text("Theme color", modifier = Modifier.padding(bottom = 8.dp))
-                FlowRow(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 24.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    CynColorSwatch(
-                        selected = appSettings.themeColorIndex == CYN_THEME_INDEX,
-                        onClick = { appSettings.updateThemeColorIndex(CYN_THEME_INDEX) },
-                    )
-                    ColorSwatch(
-                        color = null,
-                        selected = appSettings.themeColorIndex == SYSTEM_THEME_INDEX,
-                        onClick = { appSettings.updateThemeColorIndex(SYSTEM_THEME_INDEX) },
-                    )
-                    THEME_COLOR_PRESETS.forEachIndexed { index, color ->
-                        ColorSwatch(
-                            color = color,
-                            selected = appSettings.themeColorIndex == index,
-                            onClick = { appSettings.updateThemeColorIndex(index) },
-                        )
-                    }
-                }
-
-                Text("Page text size", modifier = Modifier.padding(bottom = 8.dp))
-                FlowRow(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 24.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    listOf(75, 100, 125, 150, 200).forEach { percent ->
-                        val selected = appSettings.pageTextZoom == percent
-                        if (selected) {
-                            Button(onClick = {}) { Text("$percent%") }
-                        } else {
-                            TextButton(onClick = { appSettings.updatePageTextZoom(percent) }) {
-                                Text("$percent%")
-                            }
-                        }
-                    }
-                }
-
-                HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
-
-                SectionHeader("Privacy")
-
-                SettingSwitchRow(
-                    label = "Block pop-ups",
-                    checked = appSettings.blockPopups,
-                    onCheckedChange = appSettings::updateBlockPopups,
-                )
-                Text(
-                    text = "Blocks windows a page opens on its own; pop-ups from a direct tap still open as a new tab.",
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(top = 4.dp, bottom = 16.dp),
-                )
-
-                SettingSwitchRow(
-                    label = "Send Do Not Track requests",
-                    checked = appSettings.doNotTrack,
-                    onCheckedChange = appSettings::updateDoNotTrack,
-                )
-                Text(
-                    text = "Asks sites not to track you. Most sites ignore this, but it costs nothing to ask.",
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(top = 4.dp, bottom = 16.dp),
-                )
-
-                SettingSwitchRow(
-                    label = "Block third-party cookies",
-                    checked = appSettings.blockThirdPartyCookies,
-                    onCheckedChange = appSettings::updateBlockThirdPartyCookies,
-                )
-                Text(
-                    text = "Stops sites embedded in other pages (trackers, ad networks) from reading or setting cookies.",
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(top = 4.dp, bottom = 16.dp),
-                )
-
-                SettingSwitchRow(
-                    label = "Lock private tabs",
-                    checked = appSettings.lockPrivateTabsEnabled,
-                    onCheckedChange = { enable ->
-                        if (enable) {
-                            val canAuthenticate = BiometricManager.from(context).canAuthenticate(
-                                BiometricManager.Authenticators.BIOMETRIC_WEAK or
-                                    BiometricManager.Authenticators.DEVICE_CREDENTIAL,
+                Column {
+                    SectionHeader("General")
+                    GroupedCard {
+                        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+                            Text("Home page", style = MaterialTheme.typography.labelLarge)
+                            OutlinedTextField(
+                                value = appSettings.homeUrl,
+                                onValueChange = appSettings::updateHomeUrl,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 8.dp),
+                                singleLine = true,
                             )
-                            if (canAuthenticate == BiometricManager.BIOMETRIC_SUCCESS) {
-                                appSettings.updateLockPrivateTabsEnabled(true)
-                            } else {
-                                Toast.makeText(
-                                    context,
-                                    "Set up a screen lock (PIN, pattern, or fingerprint) to use this",
-                                    Toast.LENGTH_LONG,
-                                ).show()
-                            }
-                        } else {
-                            appSettings.updateLockPrivateTabsEnabled(false)
                         }
-                    },
-                )
-                Text(
-                    text = "Requires your fingerprint, face, or PIN to reopen private tabs after leaving the app.",
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(top = 4.dp, bottom = 16.dp),
-                )
+                        CardRow(
+                            icon = Icons.Filled.Javascript,
+                            title = "Enable JavaScript",
+                        ) {
+                            Switch(
+                                checked = appSettings.javaScriptEnabled,
+                                onCheckedChange = appSettings::updateJavaScriptEnabled,
+                            )
+                        }
+                        SearchEngineRow(
+                            selectedKey = appSettings.searchEngineKey,
+                            onSelect = appSettings::updateSearchEngineKey,
+                        )
+                        CardRow(
+                            icon = Icons.Filled.DarkMode,
+                            title = "Dark mode for web pages",
+                        ) {
+                            Switch(
+                                checked = appSettings.darkModeForPages,
+                                onCheckedChange = appSettings::updateDarkModeForPages,
+                            )
+                        }
+                    }
+                    Button(
+                        onClick = { confirmClearDataVisible = true },
+                        modifier = Modifier.padding(top = 16.dp),
+                    ) {
+                        Text("Clear browsing data")
+                    }
+                }
 
-                HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
+                Column {
+                    SectionHeader("Appearance")
+                    GroupedCard {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text("Theme color", modifier = Modifier.padding(bottom = 12.dp))
+                            FlowRow(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(12.dp),
+                            ) {
+                                CynColorSwatch(
+                                    selected = appSettings.themeColorIndex == CYN_THEME_INDEX,
+                                    onClick = { appSettings.updateThemeColorIndex(CYN_THEME_INDEX) },
+                                )
+                                ColorSwatch(
+                                    color = null,
+                                    selected = appSettings.themeColorIndex == SYSTEM_THEME_INDEX,
+                                    onClick = { appSettings.updateThemeColorIndex(SYSTEM_THEME_INDEX) },
+                                )
+                                THEME_COLOR_PRESETS.forEachIndexed { index, color ->
+                                    ColorSwatch(
+                                        color = color,
+                                        selected = appSettings.themeColorIndex == index,
+                                        onClick = { appSettings.updateThemeColorIndex(index) },
+                                    )
+                                }
+                            }
 
-                SectionHeader("Developer")
+                            Text("Page text size", modifier = Modifier.padding(top = 20.dp, bottom = 12.dp))
+                            FlowRow(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                listOf(75, 100, 125, 150, 200).forEach { percent ->
+                                    val selected = appSettings.pageTextZoom == percent
+                                    if (selected) {
+                                        Button(onClick = {}) { Text("$percent%") }
+                                    } else {
+                                        TextButton(onClick = { appSettings.updatePageTextZoom(percent) }) {
+                                            Text("$percent%")
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
 
-                SettingSwitchRow(
-                    label = "Remote debugging",
-                    checked = appSettings.remoteDebuggingEnabled,
-                    onCheckedChange = appSettings::updateRemoteDebuggingEnabled,
-                )
-                Text(
-                    text = "Inspect this browser's open pages from Chrome DevTools on a computer: " +
-                        "connect the device over USB, then open chrome://inspect in Chrome.",
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(top = 4.dp, bottom = 16.dp),
-                )
+                Column {
+                    SectionHeader("Privacy")
+                    GroupedCard {
+                        CardRow(
+                            icon = Icons.Filled.OpenInNew,
+                            title = "Block pop-ups",
+                            subtitle = "Pop-ups from a direct tap still open as a new tab",
+                        ) {
+                            Switch(checked = appSettings.blockPopups, onCheckedChange = appSettings::updateBlockPopups)
+                        }
+                        CardRow(
+                            icon = Icons.Filled.VisibilityOff,
+                            title = "Send Do Not Track requests",
+                            subtitle = "Most sites ignore this, but it costs nothing to ask",
+                        ) {
+                            Switch(checked = appSettings.doNotTrack, onCheckedChange = appSettings::updateDoNotTrack)
+                        }
+                        CardRow(
+                            icon = Icons.Filled.Cookie,
+                            title = "Block third-party cookies",
+                            subtitle = "Stops embedded trackers from reading or setting cookies",
+                        ) {
+                            Switch(
+                                checked = appSettings.blockThirdPartyCookies,
+                                onCheckedChange = appSettings::updateBlockThirdPartyCookies,
+                            )
+                        }
+                        CardRow(
+                            icon = Icons.Filled.Lock,
+                            title = "Lock private tabs",
+                            subtitle = "Requires fingerprint, face, or PIN to reopen them",
+                        ) {
+                            Switch(
+                                checked = appSettings.lockPrivateTabsEnabled,
+                                onCheckedChange = { enable ->
+                                    if (enable) {
+                                        val canAuthenticate = BiometricManager.from(context).canAuthenticate(
+                                            BiometricManager.Authenticators.BIOMETRIC_WEAK or
+                                                BiometricManager.Authenticators.DEVICE_CREDENTIAL,
+                                        )
+                                        if (canAuthenticate == BiometricManager.BIOMETRIC_SUCCESS) {
+                                            appSettings.updateLockPrivateTabsEnabled(true)
+                                        } else {
+                                            Toast.makeText(
+                                                context,
+                                                "Set up a screen lock (PIN, pattern, or fingerprint) to use this",
+                                                Toast.LENGTH_LONG,
+                                            ).show()
+                                        }
+                                    } else {
+                                        appSettings.updateLockPrivateTabsEnabled(false)
+                                    }
+                                },
+                            )
+                        }
+                    }
+                }
+
+                Column {
+                    SectionHeader("Developer")
+                    GroupedCard {
+                        CardRow(
+                            icon = Icons.Filled.Code,
+                            title = "Remote debugging",
+                            subtitle = "Connect over USB, then open chrome://inspect in Chrome",
+                        ) {
+                            Switch(
+                                checked = appSettings.remoteDebuggingEnabled,
+                                onCheckedChange = appSettings::updateRemoteDebuggingEnabled,
+                            )
+                        }
+                    }
+                }
             }
         }
     }
@@ -293,7 +302,7 @@ private fun SectionHeader(title: String) {
         style = MaterialTheme.typography.labelLarge,
         color = MaterialTheme.colorScheme.primary,
         fontWeight = FontWeight.Bold,
-        modifier = Modifier.padding(bottom = 8.dp),
+        modifier = Modifier.padding(bottom = 8.dp, start = 4.dp),
     )
 }
 
@@ -305,16 +314,12 @@ private fun SearchEngineRow(
     var expanded by remember { mutableStateOf(false) }
 
     Box {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { expanded = true }
-                .padding(vertical = 12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
+        CardRow(
+            icon = Icons.Filled.Language,
+            title = "Search engine",
+            modifier = Modifier.clickable { expanded = true },
         ) {
-            Text("Search engine")
-            Text(searchEngineFor(selectedKey).label)
+            Text(searchEngineFor(selectedKey).label, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             SEARCH_ENGINES.forEach { engine ->
@@ -391,21 +396,5 @@ private fun ColorSwatch(color: Color?, selected: Boolean, onClick: () -> Unit) {
                 )
             }
         }
-    }
-}
-
-@Composable
-private fun SettingSwitchRow(
-    label: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(label)
-        Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }

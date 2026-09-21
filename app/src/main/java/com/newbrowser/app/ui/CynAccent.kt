@@ -21,7 +21,7 @@ import androidx.compose.ui.unit.dp
 import com.newbrowser.app.ui.theme.CynPrimary
 import com.newbrowser.app.ui.theme.CynSecondary
 
-/** A thin magenta-to-cyan gradient line, Cyn's signature accent, used under screen headers. */
+/** A thin gold-to-tan gradient line, Cyn's signature accent, used under screen headers. */
 @Composable
 fun CynAccentLine(modifier: Modifier = Modifier) {
     Box(

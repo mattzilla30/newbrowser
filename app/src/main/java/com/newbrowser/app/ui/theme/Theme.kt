@@ -21,7 +21,7 @@ private val DarkColors = darkColorScheme(
     secondary = BrowserTealDark,
 )
 
-/** The app's own default look: Cyn's magenta glow and worker-drone cyan on a near-black chassis. */
+/** The app's own default look: Cyn's black clothing and glowing gold eyes on a near-black chassis. */
 private val CynColorScheme = darkColorScheme(
     primary = CynPrimary,
     onPrimary = CynOnPrimary,

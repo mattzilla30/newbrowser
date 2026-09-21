@@ -45,47 +45,79 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import androidx.webkit.WebSettingsCompat
 import androidx.webkit.WebViewFeature
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.MenuBook
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AddToHomeScreen
+import androidx.compose.material.icons.filled.Bookmarks
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.DesktopWindows
+import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Extension
+import androidx.compose.material.icons.filled.FindInPage
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.PictureAsPdf
+import androidx.compose.material.icons.filled.Print
+import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
+import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material.icons.filled.Tab
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
@@ -103,10 +135,14 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -149,7 +185,6 @@ fun BrowserScreen(
     var isAddressFocused by remember { mutableStateOf(false) }
     var suggestions by remember { mutableStateOf<List<Suggestion>>(emptyList()) }
     var remoteSuggestions by remember { mutableStateOf<List<String>>(emptyList()) }
-    var menuExpanded by remember { mutableStateOf(false) }
 
     var findBarVisible by remember { mutableStateOf(false) }
     var findQuery by remember { mutableStateOf("") }
@@ -157,6 +192,12 @@ fun BrowserScreen(
     var findTotal by remember { mutableIntStateOf(0) }
 
     var isBookmarked by remember(activeTab.url) { mutableStateOf(database.isBookmarked(activeTab.url)) }
+
+    var menuSheetVisible by remember { mutableStateOf(false) }
+    var quickToolsSheetVisible by remember { mutableStateOf(false) }
+    var siteStyleDialogVisible by remember { mutableStateOf(false) }
+    var siteStyleCss by remember { mutableStateOf("") }
+    var autoScrollActive by remember { mutableStateOf(false) }
 
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
@@ -564,6 +605,11 @@ fun BrowserScreen(
         findBarVisible = false
         findQuery = ""
         findTotal = 0
+        autoScrollActive = false
+    }
+
+    LaunchedEffect(activeTab.url) {
+        autoScrollActive = false
     }
 
     LaunchedEffect(activeTab.url, isAddressFocused) {
@@ -639,6 +685,42 @@ fun BrowserScreen(
             .setIntent(shortcutIntent)
             .build()
         ShortcutManagerCompat.requestPinShortcut(context, shortcut, null)
+        showSnackbar("Pinned to home screen")
+    }
+
+    fun copyLink() {
+        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        clipboard.setPrimaryClip(ClipData.newPlainText("link", activeTab.url))
+        showSnackbar("Link copied")
+    }
+
+    fun toggleAutoScroll() {
+        autoScrollActive = !autoScrollActive
+        val script = if (autoScrollActive) {
+            "if (!window.__cynAutoScrollId) { window.__cynAutoScrollId = setInterval(function(){ window.scrollBy(0, 2); }, 50); }"
+        } else {
+            "if (window.__cynAutoScrollId) { clearInterval(window.__cynAutoScrollId); window.__cynAutoScrollId = null; }"
+        }
+        webView.evaluateJavascript(script, null)
+        showSnackbar(if (autoScrollActive) "Auto-scroll on" else "Auto-scroll off")
+    }
+
+    fun toggleEditPage() {
+        webView.evaluateJavascript(
+            "document.designMode = (document.designMode === 'on') ? 'off' : 'on';",
+            null,
+        )
+        showSnackbar("Toggled page editing")
+    }
+
+    fun applySiteStyle(css: String) {
+        val script = "(function(){" +
+            "var s = document.getElementById('__cynSiteStyle__');" +
+            "if (!s) { s = document.createElement('style'); s.id = '__cynSiteStyle__'; document.head.appendChild(s); }" +
+            "s.textContent = ${JSONObject.quote(css)};" +
+            "})();"
+        webView.evaluateJavascript(script, null)
+        showSnackbar("Style applied")
     }
 
     fun openReaderMode() {
@@ -670,17 +752,42 @@ fun BrowserScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
     Column(modifier = Modifier.fillMaxSize()) {
-        Surface(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .windowInsetsPadding(WindowInsets.statusBars),
-            tonalElevation = 2.dp,
+                .windowInsetsPadding(WindowInsets.statusBars)
+                .padding(horizontal = 12.dp, vertical = 8.dp),
         ) {
-            Column {
+            Surface(
+                shape = OmniPillShape,
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                tonalElevation = 4.dp,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.padding(start = 6.dp, end = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.surface),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        val favicon = activeTab.favicon
+                        if (activeTab.url != NEW_TAB_URL && favicon != null) {
+                            Image(bitmap = favicon.asImageBitmap(), contentDescription = null, modifier = Modifier.size(18.dp))
+                        } else {
+                            Icon(
+                                if (activeTab.url == NEW_TAB_URL) Icons.Filled.Search else Icons.Filled.Lock,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(16.dp),
+                            )
+                        }
+                    }
+
                     Box(modifier = Modifier.weight(1f)) {
                         OutlinedTextField(
                             value = if (activeTab.url == NEW_TAB_URL) "" else activeTab.url,
@@ -690,17 +797,14 @@ fun BrowserScreen(
                             },
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 4.dp, vertical = 8.dp)
+                                .padding(horizontal = 4.dp)
                                 .onFocusChanged { isAddressFocused = it.isFocused },
                             singleLine = true,
                             placeholder = { Text("Search or enter address") },
-                            leadingIcon = if (activeTab.url != NEW_TAB_URL) {
-                                activeTab.favicon?.let { fav ->
-                                    { Image(bitmap = fav.asImageBitmap(), contentDescription = null, modifier = Modifier.size(20.dp)) }
-                                }
-                            } else {
-                                null
-                            },
+                            colors = OutlinedTextFieldDefaults.colors(
+                                unfocusedBorderColor = Color.Transparent,
+                                focusedBorderColor = Color.Transparent,
+                            ),
                             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Go),
                             keyboardActions = KeyboardActions(onGo = { navigateTo(activeTab.url) }),
                         )
@@ -751,59 +855,77 @@ fun BrowserScreen(
                         Icon(
                             if (isBookmarked) Icons.Filled.Star else Icons.Filled.StarBorder,
                             contentDescription = "Bookmark this page",
+                            tint = if (isBookmarked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-                }
-
-                if (activeTab.isLoading) {
-                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-                }
-
-                if (findBarVisible) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 8.dp, vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        OutlinedTextField(
-                            value = findQuery,
-                            onValueChange = {
-                                findQuery = it
-                                if (it.isNotEmpty()) webView.findAllAsync(it) else webView.clearMatches()
-                            },
-                            modifier = Modifier.weight(1f),
-                            singleLine = true,
-                            placeholder = { Text("Find in page") },
+                    IconButton(onClick = {
+                        if (activeTab.isLoading) webView.stopLoading() else webView.reload()
+                    }) {
+                        Icon(
+                            if (activeTab.isLoading) Icons.Filled.Close else Icons.Filled.Refresh,
+                            contentDescription = if (activeTab.isLoading) "Stop" else "Reload",
                         )
-                        Text(
-                            text = if (findTotal > 0) "${findActiveOrdinal + 1}/$findTotal" else "0/0",
-                            modifier = Modifier.padding(horizontal = 8.dp),
-                        )
-                        IconButton(onClick = { webView.findNext(false) }) {
-                            Icon(Icons.Filled.KeyboardArrowUp, contentDescription = "Previous match")
-                        }
-                        IconButton(onClick = { webView.findNext(true) }) {
-                            Icon(Icons.Filled.KeyboardArrowDown, contentDescription = "Next match")
-                        }
-                        IconButton(onClick = {
-                            findBarVisible = false
-                            findQuery = ""
-                            webView.clearMatches()
-                        }) {
-                            Icon(Icons.Filled.Close, contentDescription = "Close find bar")
-                        }
+                    }
+                    IconButton(onClick = { onNavigate(Screen.Extensions) }) {
+                        Icon(Icons.Filled.Extension, contentDescription = "Extensions")
+                    }
+                }
+            }
+
+            if (activeTab.isLoading) {
+                LinearProgressIndicator(modifier = Modifier.fillMaxWidth().padding(top = 4.dp))
+            }
+
+            if (findBarVisible) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    OutlinedTextField(
+                        value = findQuery,
+                        onValueChange = {
+                            findQuery = it
+                            if (it.isNotEmpty()) webView.findAllAsync(it) else webView.clearMatches()
+                        },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true,
+                        placeholder = { Text("Find in page") },
+                    )
+                    Text(
+                        text = if (findTotal > 0) "${findActiveOrdinal + 1}/$findTotal" else "0/0",
+                        modifier = Modifier.padding(horizontal = 8.dp),
+                    )
+                    IconButton(onClick = { webView.findNext(false) }) {
+                        Icon(Icons.Filled.KeyboardArrowUp, contentDescription = "Previous match")
+                    }
+                    IconButton(onClick = { webView.findNext(true) }) {
+                        Icon(Icons.Filled.KeyboardArrowDown, contentDescription = "Next match")
+                    }
+                    IconButton(onClick = {
+                        findBarVisible = false
+                        findQuery = ""
+                        webView.clearMatches()
+                    }) {
+                        Icon(Icons.Filled.Close, contentDescription = "Close find bar")
                     }
                 }
             }
         }
-        CynAccentLine()
 
         if (activeTab.url == NEW_TAB_URL) {
             NewTabPage(
                 topSites = if (activeTab.isIncognito) emptyList() else remember(activeTab.id) { database.getTopSites() },
+                blockPopups = appSettings.blockPopups,
+                blockThirdPartyCookies = appSettings.blockThirdPartyCookies,
                 onOpenSite = { navigateTo(it) },
                 onSearch = { navigateTo(it) },
+                onOpenBookmarks = { onNavigate(Screen.Bookmarks) },
+                onOpenHistory = { onNavigate(Screen.History) },
+                onOpenDownloads = { onNavigate(Screen.Downloads) },
+                onNewPrivateTab = { tabManager.newTab(incognito = true) },
+                onOpenSettings = { onNavigate(Screen.Settings) },
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth(),
@@ -824,15 +946,17 @@ fun BrowserScreen(
         }
 
         Surface(
+            shape = OmniCardShape.copy(bottomStart = CornerSize(0.dp), bottomEnd = CornerSize(0.dp)),
+            color = MaterialTheme.colorScheme.surfaceVariant,
+            tonalElevation = 4.dp,
             modifier = Modifier
                 .fillMaxWidth()
                 .windowInsetsPadding(WindowInsets.navigationBars),
-            tonalElevation = 2.dp,
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 4.dp),
+                    .padding(vertical = 8.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -842,13 +966,8 @@ fun BrowserScreen(
                 IconButton(onClick = { webView.goForward() }, enabled = activeTab.canGoForward) {
                     Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Forward")
                 }
-                IconButton(onClick = {
-                    if (activeTab.isLoading) webView.stopLoading() else webView.reload()
-                }) {
-                    Icon(
-                        if (activeTab.isLoading) Icons.Filled.Close else Icons.Filled.Refresh,
-                        contentDescription = if (activeTab.isLoading) "Stop" else "Reload",
-                    )
+                IconButton(onClick = { navigateTo(appSettings.homeUrl) }) {
+                    Icon(Icons.Filled.Home, contentDescription = "Home")
                 }
                 IconButton(onClick = { onNavigate(Screen.Tabs) }) {
                     BadgedBox(badge = {
@@ -859,90 +978,85 @@ fun BrowserScreen(
                         Icon(Icons.Filled.Tab, contentDescription = "Tabs")
                     }
                 }
-                Box {
-                    IconButton(onClick = { menuExpanded = true }) {
-                        Icon(Icons.Filled.MoreVert, contentDescription = "More")
-                    }
-                    DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
-                        DropdownMenuItem(text = { Text("Home") }, onClick = {
-                            menuExpanded = false
-                            navigateTo(appSettings.homeUrl)
-                        })
-                        DropdownMenuItem(text = { Text("New tab") }, onClick = {
-                            menuExpanded = false
-                            tabManager.newTab()
-                        })
-                        DropdownMenuItem(text = { Text("New private tab") }, onClick = {
-                            menuExpanded = false
-                            tabManager.newTab(incognito = true)
-                        })
-                        DropdownMenuItem(text = { Text("Bookmarks") }, onClick = {
-                            menuExpanded = false
-                            onNavigate(Screen.Bookmarks)
-                        })
-                        DropdownMenuItem(text = { Text("Save to Reading List") }, onClick = {
-                            menuExpanded = false
-                            database.addToReadingList(activeTab.url, activeTab.title.ifBlank { activeTab.url })
-                            showSnackbar("Saved to Reading List")
-                        })
-                        DropdownMenuItem(text = { Text("Reading List") }, onClick = {
-                            menuExpanded = false
-                            onNavigate(Screen.ReadingList)
-                        })
-                        DropdownMenuItem(text = { Text("History") }, onClick = {
-                            menuExpanded = false
-                            onNavigate(Screen.History)
-                        })
-                        DropdownMenuItem(text = { Text("Downloads") }, onClick = {
-                            menuExpanded = false
-                            onNavigate(Screen.Downloads)
-                        })
-                        DropdownMenuItem(text = { Text("Find in page") }, onClick = {
-                            menuExpanded = false
-                            findBarVisible = true
-                        })
-                        DropdownMenuItem(
-                            text = {
-                                Text(
-                                    if (activeTab.requestDesktopSite) "Request mobile site" else "Request desktop site",
-                                )
-                            },
-                            onClick = {
-                                menuExpanded = false
-                                toggleDesktopSite()
-                            },
-                        )
-                        DropdownMenuItem(text = { Text("Reader mode") }, onClick = {
-                            menuExpanded = false
-                            openReaderMode()
-                        })
-                        DropdownMenuItem(text = { Text("Share page") }, onClick = {
-                            menuExpanded = false
-                            sharePage()
-                        })
-                        DropdownMenuItem(text = { Text("Print") }, onClick = {
-                            menuExpanded = false
-                            printPage()
-                        })
-                        DropdownMenuItem(text = { Text("Save page offline") }, onClick = {
-                            menuExpanded = false
-                            savePageOffline()
-                        })
-                        DropdownMenuItem(text = { Text("Add to Home screen") }, onClick = {
-                            menuExpanded = false
-                            addToHomeScreen()
-                        })
-                        DropdownMenuItem(text = { Text("Site permissions") }, onClick = {
-                            menuExpanded = false
-                            onNavigate(Screen.SitePermissions)
-                        })
-                    }
-                }
-                IconButton(onClick = { onNavigate(Screen.Settings) }) {
-                    Icon(Icons.Filled.Settings, contentDescription = "Settings")
+                IconButton(onClick = { menuSheetVisible = true }) {
+                    Icon(Icons.Filled.Menu, contentDescription = "Menu")
                 }
             }
         }
+    }
+
+    if (menuSheetVisible) {
+        MenuSheet(
+            onDismiss = { menuSheetVisible = false },
+            onAction = { action -> menuSheetVisible = false; action() },
+            isIncognito = activeTab.isIncognito,
+            requestDesktopSite = activeTab.requestDesktopSite,
+            onNewTab = { tabManager.newTab() },
+            onNewPrivateTab = { tabManager.newTab(incognito = true) },
+            onBookmarks = { onNavigate(Screen.Bookmarks) },
+            onSaveToReadingList = {
+                database.addToReadingList(activeTab.url, activeTab.title.ifBlank { activeTab.url })
+                showSnackbar("Saved to Reading List")
+            },
+            onReadingList = { onNavigate(Screen.ReadingList) },
+            onHistory = { onNavigate(Screen.History) },
+            onDownloads = { onNavigate(Screen.Downloads) },
+            onFindInPage = { findBarVisible = true },
+            onToggleDesktopSite = { toggleDesktopSite() },
+            onReaderMode = { openReaderMode() },
+            onSharePage = { sharePage() },
+            onPrint = { printPage() },
+            onSaveOffline = { savePageOffline() },
+            onSitePermissions = { onNavigate(Screen.SitePermissions) },
+            onSettings = { onNavigate(Screen.Settings) },
+            onQuickTools = { quickToolsSheetVisible = true },
+        )
+    }
+
+    if (quickToolsSheetVisible) {
+        QuickToolsSheet(
+            onDismiss = { quickToolsSheetVisible = false },
+            onAction = { action -> quickToolsSheetVisible = false; action() },
+            autoScrollActive = autoScrollActive,
+            onSavePdf = { printPage() },
+            onPinWebApp = { addToHomeScreen() },
+            onAutoScroll = { toggleAutoScroll() },
+            onSiteStyle = { siteStyleDialogVisible = true },
+            onEditPage = { toggleEditPage() },
+            onCopyLink = { copyLink() },
+            onSafeLocker = { onNavigate(Screen.SafeLocker) },
+        )
+    }
+
+    if (siteStyleDialogVisible) {
+        AlertDialog(
+            onDismissRequest = { siteStyleDialogVisible = false },
+            title = { Text("Site style") },
+            text = {
+                Column {
+                    Text(
+                        "Add custom CSS for this page. It resets when you reload or navigate away.",
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(bottom = 8.dp),
+                    )
+                    OutlinedTextField(
+                        value = siteStyleCss,
+                        onValueChange = { siteStyleCss = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        placeholder = { Text("body { filter: invert(1); }") },
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    applySiteStyle(siteStyleCss)
+                    siteStyleDialogVisible = false
+                }) { Text("Apply") }
+            },
+            dismissButton = {
+                TextButton(onClick = { siteStyleDialogVisible = false }) { Text("Cancel") }
+            },
+        )
     }
 
     readerContent?.let { reader ->
@@ -1134,39 +1248,187 @@ fun BrowserScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun MenuSheet(
+    onDismiss: () -> Unit,
+    onAction: ((() -> Unit)) -> Unit,
+    isIncognito: Boolean,
+    requestDesktopSite: Boolean,
+    onNewTab: () -> Unit,
+    onNewPrivateTab: () -> Unit,
+    onBookmarks: () -> Unit,
+    onSaveToReadingList: () -> Unit,
+    onReadingList: () -> Unit,
+    onHistory: () -> Unit,
+    onDownloads: () -> Unit,
+    onFindInPage: () -> Unit,
+    onToggleDesktopSite: () -> Unit,
+    onReaderMode: () -> Unit,
+    onSharePage: () -> Unit,
+    onPrint: () -> Unit,
+    onSaveOffline: () -> Unit,
+    onSitePermissions: () -> Unit,
+    onSettings: () -> Unit,
+    onQuickTools: () -> Unit,
+) {
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Text(
+            text = "Menu",
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp),
+        )
+        ActionGrid(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            actions = buildList {
+                add(GridAction("New tab", Icons.Filled.Add) { onAction(onNewTab) })
+                add(GridAction("Private tab", Icons.Filled.VisibilityOff) { onAction(onNewPrivateTab) })
+                add(GridAction("Bookmarks", Icons.Filled.Bookmarks) { onAction(onBookmarks) })
+                add(GridAction("History", Icons.Filled.History) { onAction(onHistory) })
+                add(GridAction("Downloads", Icons.Filled.Download) { onAction(onDownloads) })
+                add(GridAction("Reading List", Icons.AutoMirrored.Filled.MenuBook) { onAction(onReadingList) })
+                add(GridAction("Save to List", Icons.Filled.Bookmarks) { onAction(onSaveToReadingList) })
+                add(GridAction("Find in page", Icons.Filled.FindInPage) { onAction(onFindInPage) })
+                add(
+                    GridAction(
+                        if (requestDesktopSite) "Mobile site" else "Desktop site",
+                        Icons.Filled.DesktopWindows,
+                    ) { onAction(onToggleDesktopSite) },
+                )
+                add(GridAction("Reader mode", Icons.AutoMirrored.Filled.MenuBook) { onAction(onReaderMode) })
+                add(GridAction("Share page", Icons.Filled.Share) { onAction(onSharePage) })
+                add(GridAction("Print", Icons.Filled.Print) { onAction(onPrint) })
+                add(GridAction("Save offline", Icons.Filled.Download) { onAction(onSaveOffline) })
+                add(GridAction("Site permissions", Icons.Filled.Shield) { onAction(onSitePermissions) })
+                add(GridAction("Quick Tools", Icons.Filled.Extension) { onAction(onQuickTools) })
+                add(GridAction("Settings", Icons.Filled.Settings) { onAction(onSettings) })
+            },
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun QuickToolsSheet(
+    onDismiss: () -> Unit,
+    onAction: ((() -> Unit)) -> Unit,
+    autoScrollActive: Boolean,
+    onSavePdf: () -> Unit,
+    onPinWebApp: () -> Unit,
+    onAutoScroll: () -> Unit,
+    onSiteStyle: () -> Unit,
+    onEditPage: () -> Unit,
+    onCopyLink: () -> Unit,
+    onSafeLocker: () -> Unit,
+) {
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Text(
+            text = "Quick Tools",
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp),
+        )
+        ActionGrid(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            actions = listOf(
+                GridAction("Save PDF", Icons.Filled.PictureAsPdf) { onAction(onSavePdf) },
+                GridAction("Pin Web App", Icons.Filled.PushPin) { onAction(onPinWebApp) },
+                GridAction(
+                    if (autoScrollActive) "Stop Scroll" else "Auto-Scroll",
+                    Icons.Filled.SwapVert,
+                    onClick = { onAction(onAutoScroll) },
+                    tint = if (autoScrollActive) MaterialTheme.colorScheme.primary else null,
+                ),
+                GridAction("Site Style", Icons.Filled.Palette) { onAction(onSiteStyle) },
+                GridAction("Edit Page", Icons.Filled.Edit) { onAction(onEditPage) },
+                GridAction("Copy Link", Icons.Filled.ContentCopy) { onAction(onCopyLink) },
+                GridAction("Safe Locker", Icons.Filled.Lock) { onAction(onSafeLocker) },
+            ),
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+    }
+}
+
 @Composable
 private fun NewTabPage(
     topSites: List<HistoryEntry>,
+    blockPopups: Boolean,
+    blockThirdPartyCookies: Boolean,
     onOpenSite: (String) -> Unit,
     onSearch: (String) -> Unit,
+    onOpenBookmarks: () -> Unit,
+    onOpenHistory: () -> Unit,
+    onOpenDownloads: () -> Unit,
+    onNewPrivateTab: () -> Unit,
+    onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var query by remember { mutableStateOf("") }
 
-    Column(modifier = modifier.padding(24.dp)) {
-        Text(
-            text = "New Tab",
-            style = MaterialTheme.typography.headlineSmall,
-            modifier = Modifier.padding(bottom = 16.dp),
+    Column(
+        modifier = modifier
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Spacer(modifier = Modifier.height(32.dp))
+        Image(
+            painter = painterResource(R.drawable.ic_launcher_foreground),
+            contentDescription = null,
+            modifier = Modifier.size(88.dp),
         )
-        OutlinedTextField(
-            value = query,
-            onValueChange = { query = it },
+        Text(
+            text = "CynBrowse",
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(top = 8.dp, bottom = 24.dp),
+        )
+
+        Surface(
+            shape = OmniPillShape,
+            color = MaterialTheme.colorScheme.surfaceVariant,
             modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-            placeholder = { Text("Search or enter address") },
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Go),
-            keyboardActions = KeyboardActions(onGo = { if (query.isNotBlank()) onSearch(query) }),
+        ) {
+            OutlinedTextField(
+                value = query,
+                onValueChange = { query = it },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+                placeholder = { Text("Search or enter address") },
+                colors = OutlinedTextFieldDefaults.colors(
+                    unfocusedBorderColor = Color.Transparent,
+                    focusedBorderColor = Color.Transparent,
+                ),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Go),
+                keyboardActions = KeyboardActions(onGo = { if (query.isNotBlank()) onSearch(query) }),
+            )
+        }
+
+        ActionGrid(
+            modifier = Modifier.padding(top = 24.dp),
+            actions = listOf(
+                GridAction("Bookmarks", Icons.Filled.Bookmarks, onClick = onOpenBookmarks),
+                GridAction("History", Icons.Filled.History, onClick = onOpenHistory),
+                GridAction("Downloads", Icons.Filled.Download, onClick = onOpenDownloads),
+                GridAction("Incognito", Icons.Filled.VisibilityOff, onClick = onNewPrivateTab),
+            ),
         )
 
         if (topSites.isNotEmpty()) {
             Text(
-                text = "Top sites",
+                text = "Recently visited",
                 style = MaterialTheme.typography.labelLarge,
-                modifier = Modifier.padding(top = 24.dp, bottom = 8.dp),
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 24.dp, bottom = 8.dp),
             )
             LazyVerticalGrid(
-                columns = GridCells.Adaptive(minSize = 88.dp),
+                columns = GridCells.Adaptive(minSize = 72.dp),
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -1174,6 +1436,33 @@ private fun NewTabPage(
                 items(topSites, key = { it.id }) { site ->
                     TopSiteTile(site = site, onClick = { onOpenSite(site.url) })
                 }
+            }
+        }
+
+        Surface(
+            shape = OmniCardShape,
+            color = MaterialTheme.colorScheme.surfaceVariant,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 24.dp, bottom = 24.dp)
+                .clickable(onClick = onOpenSettings),
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Filled.Shield, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                    Text(
+                        text = "Privacy",
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(start = 8.dp),
+                    )
+                }
+                Text(
+                    text = "Pop-ups: ${if (blockPopups) "Blocked" else "Allowed"} · " +
+                        "Third-party cookies: ${if (blockThirdPartyCookies) "Blocked" else "Allowed"}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
             }
         }
     }
@@ -1190,7 +1479,7 @@ private fun TopSiteTile(site: HistoryEntry, onClick: () -> Unit) {
     ) {
         Surface(
             modifier = Modifier.size(48.dp),
-            shape = MaterialTheme.shapes.medium,
+            shape = CircleShape,
             color = MaterialTheme.colorScheme.secondaryContainer,
         ) {
             Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
