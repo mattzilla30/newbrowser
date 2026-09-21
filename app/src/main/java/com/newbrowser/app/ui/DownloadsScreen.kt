@@ -6,9 +6,9 @@ import android.content.Context
 import android.content.Intent
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -22,7 +22,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -81,7 +80,11 @@ fun DownloadsScreen(
             if (downloads.isEmpty() && savedPages.isEmpty()) {
                 CynEmptyState("No downloads yet")
             } else {
-                LazyColumn(modifier = Modifier.fillMaxSize()) {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
                     if (savedPages.isNotEmpty()) {
                         item { SectionLabel("Saved pages") }
                         items(savedPages, key = { "saved_" + it.id }) { page ->
@@ -95,7 +98,6 @@ fun DownloadsScreen(
                                     savedPages = savedPages.filterNot { it.id == page.id }
                                 },
                             )
-                            HorizontalDivider()
                         }
                     }
                     if (downloads.isNotEmpty()) {
@@ -113,7 +115,6 @@ fun DownloadsScreen(
                                     downloads = downloads.filterNot { it.id == record.id }
                                 },
                             )
-                            HorizontalDivider()
                         }
                     }
                 }
@@ -129,7 +130,7 @@ private fun SectionLabel(title: String) {
         style = MaterialTheme.typography.labelLarge,
         color = MaterialTheme.colorScheme.primary,
         fontWeight = FontWeight.Bold,
-        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+        modifier = Modifier.padding(bottom = 4.dp),
     )
 }
 
@@ -140,13 +141,7 @@ private fun DownloadRow(
     onShare: () -> Unit,
     onDelete: () -> Unit,
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onOpen)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
+    ListRowCard(onClick = onOpen) {
         Column(modifier = Modifier.weight(1f)) {
             Text(record.fileName, style = MaterialTheme.typography.bodyLarge, maxLines = 1)
             Text(record.url, style = MaterialTheme.typography.bodySmall, maxLines = 1)
@@ -167,13 +162,7 @@ private fun SavedPageRow(
     onShare: () -> Unit,
     onDelete: () -> Unit,
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onOpen)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
+    ListRowCard(onClick = onOpen) {
         Column(modifier = Modifier.weight(1f)) {
             Text(page.title, style = MaterialTheme.typography.bodyLarge, maxLines = 1)
             Text(page.url, style = MaterialTheme.typography.bodySmall, maxLines = 1)

@@ -1,9 +1,9 @@
 package com.newbrowser.app.ui
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -18,7 +18,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -71,7 +70,11 @@ fun ReadingListScreen(
             if (entries.isEmpty()) {
                 CynEmptyState("Nothing saved yet. Use \"Save to Reading List\" from a page's menu.")
             } else {
-                LazyColumn(modifier = Modifier.fillMaxSize()) {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
                     items(entries, key = { it.id }) { entry ->
                         ReadingListRow(
                             entry = entry,
@@ -88,7 +91,6 @@ fun ReadingListScreen(
                                 entries = entries.filterNot { it.id == entry.id }
                             },
                         )
-                        HorizontalDivider()
                     }
                 }
             }
@@ -103,13 +105,7 @@ private fun ReadingListRow(
     onToggleRead: () -> Unit,
     onDelete: () -> Unit,
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onOpen)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
+    ListRowCard(onClick = onOpen) {
         IconButton(onClick = onToggleRead) {
             Icon(
                 if (entry.isRead) Icons.Filled.CheckCircle else Icons.Filled.RadioButtonUnchecked,

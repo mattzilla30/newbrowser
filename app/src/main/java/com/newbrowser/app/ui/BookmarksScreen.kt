@@ -3,9 +3,9 @@ package com.newbrowser.app.ui
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -22,7 +22,6 @@ import androidx.compose.material.icons.filled.FileOpen
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.SortByAlpha
 import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -170,7 +169,11 @@ fun BookmarksScreen(
             if (filtered.isEmpty()) {
                 CynEmptyState(if (bookmarks.isEmpty()) "No bookmarks yet" else "No matches")
             } else {
-                LazyColumn(modifier = Modifier.fillMaxSize()) {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
                     items(filtered, key = { it.id }) { bookmark ->
                         BookmarkRow(
                             bookmark = bookmark,
@@ -180,7 +183,6 @@ fun BookmarksScreen(
                                 bookmarks = bookmarks.filterNot { it.id == bookmark.id }
                             },
                         )
-                        HorizontalDivider()
                     }
                 }
             }
@@ -194,13 +196,7 @@ private fun BookmarkRow(
     onOpen: () -> Unit,
     onDelete: () -> Unit,
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onOpen)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
+    ListRowCard(onClick = onOpen) {
         Column(modifier = Modifier.weight(1f)) {
             Text(bookmark.title, style = MaterialTheme.typography.bodyLarge, maxLines = 1)
             Text(bookmark.url, style = MaterialTheme.typography.bodySmall, maxLines = 1)

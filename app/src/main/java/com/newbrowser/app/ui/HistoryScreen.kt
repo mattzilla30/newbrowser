@@ -1,9 +1,9 @@
 package com.newbrowser.app.ui
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,7 +17,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -99,10 +98,13 @@ fun HistoryScreen(
             if (filtered.isEmpty()) {
                 CynEmptyState(if (history.isEmpty()) "No history yet" else "No matches")
             } else {
-                LazyColumn(modifier = Modifier.fillMaxSize()) {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
                     items(filtered, key = { it.id }) { entry ->
                         HistoryRow(entry = entry, onOpen = { onOpen(entry.url) })
-                        HorizontalDivider()
                     }
                 }
             }
@@ -130,13 +132,10 @@ fun HistoryScreen(
 
 @Composable
 private fun HistoryRow(entry: HistoryEntry, onOpen: () -> Unit) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onOpen)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-    ) {
-        Text(entry.title, style = MaterialTheme.typography.bodyLarge, maxLines = 1)
-        Text(entry.url, style = MaterialTheme.typography.bodySmall, maxLines = 1)
+    ListRowCard(onClick = onOpen) {
+        Column {
+            Text(entry.title, style = MaterialTheme.typography.bodyLarge, maxLines = 1)
+            Text(entry.url, style = MaterialTheme.typography.bodySmall, maxLines = 1)
+        }
     }
 }

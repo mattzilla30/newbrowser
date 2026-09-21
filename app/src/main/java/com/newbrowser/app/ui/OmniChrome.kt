@@ -4,6 +4,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -26,7 +28,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 
 /**
- * One tile in a Menu / Quick Tools / Extensions icon grid: a circular icon over a caption.
+ * One tile in a Menu / Quick Tools icon grid: a circular icon over a caption.
  * [onClick] is last so call sites can use trailing-lambda syntax and skip [tint].
  */
 data class GridAction(
@@ -85,7 +87,7 @@ private fun ActionTile(action: GridAction) {
 val OmniCardShape = RoundedCornerShape(20.dp)
 val OmniPillShape = RoundedCornerShape(28.dp)
 
-/** A rounded card grouping related Settings/Extensions rows, replacing flat dividers. */
+/** A rounded card grouping related Settings rows, replacing flat dividers. */
 @Composable
 fun GroupedCard(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
     Surface(
@@ -108,7 +110,7 @@ fun CardRow(
     modifier: Modifier = Modifier,
     trailing: @Composable () -> Unit = {},
 ) {
-    androidx.compose.foundation.layout.Row(
+    Row(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 12.dp),
@@ -131,5 +133,33 @@ fun CardRow(
             }
         }
         trailing()
+    }
+}
+
+/**
+ * A single rounded-card row for a list screen (Bookmarks, History, Downloads, ...), replacing
+ * the old flat Row-plus-HorizontalDivider list style so these screens match the grouped-card
+ * look used everywhere else (Settings, Safe Locker, the Menu/Quick Tools sheets).
+ */
+@Composable
+fun ListRowCard(
+    modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null,
+    content: @Composable RowScope.() -> Unit,
+) {
+    Surface(
+        shape = OmniCardShape,
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        modifier = modifier
+            .fillMaxWidth()
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            content = content,
+        )
     }
 }

@@ -2,9 +2,9 @@ package com.newbrowser.app.ui
 
 import android.webkit.WebStorage
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -18,7 +18,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Button
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -93,18 +92,17 @@ fun SitePermissionsScreen(
             if (permissions.isEmpty() && siteData.isEmpty()) {
                 CynEmptyState("No sites have been granted or denied access, or stored data, yet.")
             } else {
-                LazyColumn(modifier = Modifier.fillMaxSize()) {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
                     if (permissions.isNotEmpty()) {
                         item {
                             SectionLabel("Permissions")
                         }
                         items(permissions, key = { "perm_" + it.origin + it.permission }) { entry ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
+                            ListRowCard {
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(entry.origin, style = MaterialTheme.typography.bodyLarge, maxLines = 1)
                                     Text(
@@ -122,7 +120,6 @@ fun SitePermissionsScreen(
                                     Icon(Icons.Filled.Delete, contentDescription = "Forget this decision")
                                 }
                             }
-                            HorizontalDivider()
                         }
                     }
 
@@ -133,22 +130,14 @@ fun SitePermissionsScreen(
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 SectionLabel("Site data", modifier = Modifier.weight(1f))
-                                Button(
-                                    onClick = {
-                                        WebStorage.getInstance().deleteAllData()
-                                        siteData = emptyList()
-                                    },
-                                    modifier = Modifier.padding(end = 16.dp),
-                                ) { Text("Clear all") }
+                                Button(onClick = {
+                                    WebStorage.getInstance().deleteAllData()
+                                    siteData = emptyList()
+                                }) { Text("Clear all") }
                             }
                         }
                         items(siteData, key = { "data_" + it.origin }) { origin ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
+                            ListRowCard {
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(origin.origin, style = MaterialTheme.typography.bodyLarge, maxLines = 1)
                                     Text(
@@ -163,7 +152,6 @@ fun SitePermissionsScreen(
                                     Icon(Icons.Filled.Delete, contentDescription = "Clear this site's data")
                                 }
                             }
-                            HorizontalDivider()
                         }
                     }
                 }
@@ -179,6 +167,6 @@ private fun SectionLabel(title: String, modifier: Modifier = Modifier) {
         style = MaterialTheme.typography.labelLarge,
         color = MaterialTheme.colorScheme.primary,
         fontWeight = FontWeight.Bold,
-        modifier = modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+        modifier = modifier.padding(bottom = 4.dp),
     )
 }

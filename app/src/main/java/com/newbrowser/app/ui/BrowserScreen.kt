@@ -866,8 +866,8 @@ fun BrowserScreen(
                             contentDescription = if (activeTab.isLoading) "Stop" else "Reload",
                         )
                     }
-                    IconButton(onClick = { onNavigate(Screen.Extensions) }) {
-                        Icon(Icons.Filled.Extension, contentDescription = "Extensions")
+                    IconButton(onClick = { quickToolsSheetVisible = true }) {
+                        Icon(Icons.Filled.Extension, contentDescription = "Quick Tools")
                     }
                 }
             }

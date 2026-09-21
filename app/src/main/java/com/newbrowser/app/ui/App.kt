@@ -114,11 +114,6 @@ fun NewBrowserApp(
                 onBack = { screen = Screen.Browser },
             )
 
-            Screen.Extensions -> ExtensionsScreen(
-                appSettings = appSettings,
-                onBack = { screen = Screen.Browser },
-            )
-
             Screen.SafeLocker -> SafeLockerScreen(
                 onBack = { screen = Screen.Browser },
             )

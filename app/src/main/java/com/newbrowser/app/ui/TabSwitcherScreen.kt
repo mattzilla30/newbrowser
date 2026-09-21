@@ -4,8 +4,10 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -152,7 +154,11 @@ fun TabSwitcherScreen(
                 )
             }
 
-            LazyColumn(modifier = Modifier.fillMaxSize()) {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
                 byGroup.forEach { (group, tabsInGroup) ->
                     item(key = "group_${group.id}") {
                         GroupHeader(group)
@@ -172,7 +178,6 @@ fun TabSwitcherScreen(
                                 if (tab.groupId != null) tabManager.removeFromGroup(tab) else groupDialogTab = tab
                             },
                         )
-                        HorizontalDivider()
                     }
                 }
                 items(ungrouped, key = { it.id }) { tab ->
@@ -188,7 +193,6 @@ fun TabSwitcherScreen(
                         onCloseOthers = { tabManager.closeOtherTabs(tab) },
                         onGroupAction = { groupDialogTab = tab },
                     )
-                    HorizontalDivider()
                 }
             }
         }
@@ -275,7 +279,7 @@ private fun GroupHeader(group: TabGroup) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
@@ -304,13 +308,7 @@ private fun TabRow(
 ) {
     var kebabExpanded by remember { mutableStateOf(false) }
 
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onSelect)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
+    ListRowCard(onClick = onSelect) {
         if (group != null) {
             Box(
                 modifier = Modifier
