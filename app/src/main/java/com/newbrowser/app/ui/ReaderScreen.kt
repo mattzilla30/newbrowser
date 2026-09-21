@@ -46,7 +46,13 @@ fun ReaderScreen(
                 IconButton(onClick = onClose) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Close reader mode")
                 }
+                Text(
+                    text = "Reader Mode",
+                    style = MaterialTheme.typography.titleLarge,
+                    modifier = Modifier.padding(start = 8.dp),
+                )
             }
+            CynAccentLine()
 
             Column(
                 modifier = Modifier

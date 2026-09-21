@@ -911,15 +911,12 @@ fun BrowserScreen(
         if (activeTab.url == NEW_TAB_URL) {
             NewTabPage(
                 topSites = if (activeTab.isIncognito) emptyList() else remember(activeTab.id) { database.getTopSites() },
-                blockPopups = appSettings.blockPopups,
-                blockThirdPartyCookies = appSettings.blockThirdPartyCookies,
                 onOpenSite = { navigateTo(it) },
                 onSearch = { navigateTo(it) },
                 onOpenBookmarks = { onNavigate(Screen.Bookmarks) },
                 onOpenHistory = { onNavigate(Screen.History) },
                 onOpenDownloads = { onNavigate(Screen.Downloads) },
                 onNewPrivateTab = { tabManager.newTab(incognito = true) },
-                onOpenSettings = { onNavigate(Screen.Settings) },
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth(),
@@ -1316,15 +1313,12 @@ private fun MenuSheet(
 @Composable
 private fun NewTabPage(
     topSites: List<HistoryEntry>,
-    blockPopups: Boolean,
-    blockThirdPartyCookies: Boolean,
     onOpenSite: (String) -> Unit,
     onSearch: (String) -> Unit,
     onOpenBookmarks: () -> Unit,
     onOpenHistory: () -> Unit,
     onOpenDownloads: () -> Unit,
     onNewPrivateTab: () -> Unit,
-    onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var query by remember { mutableStateOf("") }
@@ -1411,32 +1405,7 @@ private fun NewTabPage(
             }
         }
 
-        Surface(
-            shape = OmniCardShape,
-            color = MaterialTheme.colorScheme.surfaceVariant,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 24.dp, bottom = 24.dp)
-                .clickable(onClick = onOpenSettings),
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Filled.Shield, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                    Text(
-                        text = "Privacy",
-                        style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier.padding(start = 8.dp),
-                    )
-                }
-                Text(
-                    text = "Pop-ups: ${if (blockPopups) "Blocked" else "Allowed"} · " +
-                        "Third-party cookies: ${if (blockThirdPartyCookies) "Blocked" else "Allowed"}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 8.dp),
-                )
-            }
-        }
+        Spacer(modifier = Modifier.height(24.dp))
     }
 }
 

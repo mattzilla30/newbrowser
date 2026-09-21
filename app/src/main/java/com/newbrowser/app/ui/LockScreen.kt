@@ -3,10 +3,14 @@ package com.newbrowser.app.ui
 import androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_WEAK
 import androidx.biometric.BiometricManager.Authenticators.DEVICE_CREDENTIAL
 import androidx.biometric.BiometricPrompt
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.Button
@@ -20,6 +24,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -66,22 +71,30 @@ fun LockScreen(onUnlocked: () -> Unit, onCloseTabsInstead: () -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {
-            Icon(
-                Icons.Filled.Lock,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(bottom = 16.dp),
-            )
+            Box(
+                modifier = Modifier
+                    .size(72.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    Icons.Filled.Lock,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+            }
             Text(
                 text = "Private tabs are locked",
                 style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.padding(top = 20.dp),
             )
             Text(
                 text = "Verify it's you to see your private tabs.",
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.padding(top = 8.dp, bottom = 32.dp),
             )
-            Button(onClick = ::authenticate) {
+            Button(onClick = ::authenticate, shape = OmniPillShape) {
                 Text("Unlock")
             }
             TextButton(onClick = onCloseTabsInstead, modifier = Modifier.padding(top = 8.dp)) {
