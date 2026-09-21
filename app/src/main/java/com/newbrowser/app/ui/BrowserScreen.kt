@@ -81,7 +81,6 @@ import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.DesktopWindows
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.FindInPage
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Home
@@ -90,7 +89,6 @@ import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Palette
-import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Refresh
@@ -193,7 +191,6 @@ fun BrowserScreen(
     var isBookmarked by remember(activeTab.url) { mutableStateOf(database.isBookmarked(activeTab.url)) }
 
     var menuSheetVisible by remember { mutableStateOf(false) }
-    var quickToolsSheetVisible by remember { mutableStateOf(false) }
     var siteStyleDialogVisible by remember { mutableStateOf(false) }
     var siteStyleCss by remember { mutableStateOf("") }
     var autoScrollActive by remember { mutableStateOf(false) }
@@ -749,6 +746,7 @@ fun BrowserScreen(
         webView.goBack()
     }
 
+    Surface(modifier = Modifier.fillMaxSize()) {
     Box(modifier = Modifier.fillMaxSize()) {
     Column(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -864,9 +862,6 @@ fun BrowserScreen(
                             if (activeTab.isLoading) Icons.Filled.Close else Icons.Filled.Refresh,
                             contentDescription = if (activeTab.isLoading) "Stop" else "Reload",
                         )
-                    }
-                    IconButton(onClick = { quickToolsSheetVisible = true }) {
-                        Icon(Icons.Filled.Extension, contentDescription = "Quick Tools")
                     }
                 }
             }
@@ -990,6 +985,7 @@ fun BrowserScreen(
             onAction = { action -> menuSheetVisible = false; action() },
             isIncognito = activeTab.isIncognito,
             requestDesktopSite = activeTab.requestDesktopSite,
+            autoScrollActive = autoScrollActive,
             onNewTab = { tabManager.newTab() },
             onNewPrivateTab = { tabManager.newTab(incognito = true) },
             onBookmarks = { onNavigate(Screen.Bookmarks) },
@@ -1006,24 +1002,14 @@ fun BrowserScreen(
             onSharePage = { sharePage() },
             onPrint = { printPage() },
             onSaveOffline = { savePageOffline() },
-            onSitePermissions = { onNavigate(Screen.SitePermissions) },
-            onSettings = { onNavigate(Screen.Settings) },
-            onQuickTools = { quickToolsSheetVisible = true },
-        )
-    }
-
-    if (quickToolsSheetVisible) {
-        QuickToolsSheet(
-            onDismiss = { quickToolsSheetVisible = false },
-            onAction = { action -> quickToolsSheetVisible = false; action() },
-            autoScrollActive = autoScrollActive,
-            onSavePdf = { printPage() },
             onPinWebApp = { addToHomeScreen() },
             onAutoScroll = { toggleAutoScroll() },
             onSiteStyle = { siteStyleDialogVisible = true },
             onEditPage = { toggleEditPage() },
             onCopyLink = { copyLink() },
             onSafeLocker = { onNavigate(Screen.SafeLocker) },
+            onSitePermissions = { onNavigate(Screen.SitePermissions) },
+            onSettings = { onNavigate(Screen.Settings) },
         )
     }
 
@@ -1073,6 +1059,7 @@ fun BrowserScreen(
             .windowInsetsPadding(WindowInsets.navigationBars)
             .padding(bottom = 56.dp),
     )
+    }
     }
 
     longPressLinkUrl?.let { url ->
@@ -1254,6 +1241,7 @@ private fun MenuSheet(
     onAction: ((() -> Unit)) -> Unit,
     isIncognito: Boolean,
     requestDesktopSite: Boolean,
+    autoScrollActive: Boolean,
     onNewTab: () -> Unit,
     onNewPrivateTab: () -> Unit,
     onBookmarks: () -> Unit,
@@ -1267,9 +1255,14 @@ private fun MenuSheet(
     onSharePage: () -> Unit,
     onPrint: () -> Unit,
     onSaveOffline: () -> Unit,
+    onPinWebApp: () -> Unit,
+    onAutoScroll: () -> Unit,
+    onSiteStyle: () -> Unit,
+    onEditPage: () -> Unit,
+    onCopyLink: () -> Unit,
+    onSafeLocker: () -> Unit,
     onSitePermissions: () -> Unit,
     onSettings: () -> Unit,
-    onQuickTools: () -> Unit,
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Text(
@@ -1299,52 +1292,22 @@ private fun MenuSheet(
                 add(GridAction("Share page", Icons.Filled.Share) { onAction(onSharePage) })
                 add(GridAction("Print", Icons.Filled.Print) { onAction(onPrint) })
                 add(GridAction("Save offline", Icons.Filled.Download) { onAction(onSaveOffline) })
+                add(GridAction("Pin Web App", Icons.Filled.PushPin) { onAction(onPinWebApp) })
+                add(
+                    GridAction(
+                        if (autoScrollActive) "Stop Scroll" else "Auto-Scroll",
+                        Icons.Filled.SwapVert,
+                        onClick = { onAction(onAutoScroll) },
+                        tint = if (autoScrollActive) MaterialTheme.colorScheme.primary else null,
+                    ),
+                )
+                add(GridAction("Site Style", Icons.Filled.Palette) { onAction(onSiteStyle) })
+                add(GridAction("Edit Page", Icons.Filled.Edit) { onAction(onEditPage) })
+                add(GridAction("Copy Link", Icons.Filled.ContentCopy) { onAction(onCopyLink) })
+                add(GridAction("Safe Locker", Icons.Filled.Lock) { onAction(onSafeLocker) })
                 add(GridAction("Site permissions", Icons.Filled.Shield) { onAction(onSitePermissions) })
-                add(GridAction("Quick Tools", Icons.Filled.Extension) { onAction(onQuickTools) })
                 add(GridAction("Settings", Icons.Filled.Settings) { onAction(onSettings) })
             },
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun QuickToolsSheet(
-    onDismiss: () -> Unit,
-    onAction: ((() -> Unit)) -> Unit,
-    autoScrollActive: Boolean,
-    onSavePdf: () -> Unit,
-    onPinWebApp: () -> Unit,
-    onAutoScroll: () -> Unit,
-    onSiteStyle: () -> Unit,
-    onEditPage: () -> Unit,
-    onCopyLink: () -> Unit,
-    onSafeLocker: () -> Unit,
-) {
-    ModalBottomSheet(onDismissRequest = onDismiss) {
-        Text(
-            text = "Quick Tools",
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp),
-        )
-        ActionGrid(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-            actions = listOf(
-                GridAction("Save PDF", Icons.Filled.PictureAsPdf) { onAction(onSavePdf) },
-                GridAction("Pin Web App", Icons.Filled.PushPin) { onAction(onPinWebApp) },
-                GridAction(
-                    if (autoScrollActive) "Stop Scroll" else "Auto-Scroll",
-                    Icons.Filled.SwapVert,
-                    onClick = { onAction(onAutoScroll) },
-                    tint = if (autoScrollActive) MaterialTheme.colorScheme.primary else null,
-                ),
-                GridAction("Site Style", Icons.Filled.Palette) { onAction(onSiteStyle) },
-                GridAction("Edit Page", Icons.Filled.Edit) { onAction(onEditPage) },
-                GridAction("Copy Link", Icons.Filled.ContentCopy) { onAction(onCopyLink) },
-                GridAction("Safe Locker", Icons.Filled.Lock) { onAction(onSafeLocker) },
-            ),
         )
         Spacer(modifier = Modifier.height(16.dp))
     }
@@ -1373,11 +1336,22 @@ private fun NewTabPage(
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Spacer(modifier = Modifier.height(32.dp))
-        Image(
-            painter = painterResource(R.drawable.ic_launcher_foreground),
-            contentDescription = null,
-            modifier = Modifier.size(88.dp),
-        )
+        Box(
+            modifier = Modifier
+                .size(88.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.primary),
+            contentAlignment = Alignment.Center,
+        ) {
+            // The icon artwork is a dark glyph meant to sit on the launcher's gold
+            // background layer, not the app's own near-black background - without this
+            // circle behind it, it's invisible here.
+            Image(
+                painter = painterResource(R.drawable.ic_launcher_foreground),
+                contentDescription = null,
+                modifier = Modifier.size(88.dp),
+            )
+        }
         Text(
             text = "CynBrowse",
             style = MaterialTheme.typography.headlineMedium,
